@@ -2,7 +2,7 @@
 name: onetrace-bitrix
 services:
   db:
-    image: mariadb:11.4
+    image: mirror.gcr.io/library/mariadb:11.4
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: bitrix

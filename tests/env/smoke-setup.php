@@ -17,6 +17,13 @@ foreach (['iblock', 'catalog', 'onetrace.connector'] as $module) {
     Loader::includeModule($module);
 }
 
+// "platform <url>": the address of the platform (the fake one of the redirect check).
+if (($argv[1] ?? '') === 'platform') {
+    Config::set('url', (string) $argv[2], 's1');
+
+    return;
+}
+
 if (($argv[1] ?? '') === 'queue') {
     foreach (QueueTable::getList(['select' => ['KIND', 'PAYLOAD'], 'order' => ['ID' => 'ASC']])->fetchAll() as $row) {
         echo $row['KIND'], ' ', $row['PAYLOAD'], "\n";
@@ -25,7 +32,7 @@ if (($argv[1] ?? '') === 'queue') {
     return;
 }
 
-foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y'] as $name => $value) {
+foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y'] as $name => $value) {
     Config::set($name, $value, 's1');
 }
 
@@ -43,4 +50,11 @@ $APPLICATION->IncludeComponent('onetrace:recommendations', '', ['WIDGET' => 'k3x
 require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/footer.php';
 PHP);
 
-echo $id;
+$section = (int) (new CIBlockSection())->Add(['IBLOCK_ID' => $iblock['ID'], 'NAME' => 'Smoke section', 'CODE' => 'smoke-section-' . bin2hex(random_bytes(3)), 'ACTIVE' => 'Y']);
+(new CIBlock())->Update((int) $iblock['ID'], ['SECTION_PAGE_URL' => '#SITE_DIR#/catalog/#SECTION_CODE#/']);
+
+file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/onetrace-search.php', '<?php require $_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php"; '
+    . '$APPLICATION->IncludeComponent("onetrace:catalog.search", "", ["IBLOCK_TYPE" => "onetrace_test", "IBLOCK_ID" => ' . (int) $iblock['ID'] . ', "PAGE_ELEMENT_COUNT" => 12, "PRICE_CODE" => ["BASE"]]); '
+    . 'require $_SERVER["DOCUMENT_ROOT"] . "/bitrix/footer.php";');
+
+echo $id, ' ', $section;

@@ -36,3 +36,5 @@ $MESS['ONETRACE_OPTIONS_SAVE'] = 'Save';
 $MESS['ONETRACE_OPTIONS_SAVED'] = 'The settings are saved.';
 $MESS['ONETRACE_OPTIONS_SYNCED'] = 'Products queued for upload: #COUNT#.';
 $MESS['ONETRACE_OPTIONS_FLUSHED'] = 'Sent: #SENT#, retrying: #RETRIED#, dropped: #DROPPED#.';
+$MESS['ONETRACE_OPTIONS_PART_SEARCH'] = 'Product search';
+$MESS['ONETRACE_OPTIONS_PART_SEARCH_HINT'] = 'Catalog search results and suggestions while typing from OneTrace: word forms, typos, the wrong keyboard layout, the interests of the visitor, the rules of Site → Search. Replace the component bitrix:catalog.search with onetrace:catalog.search in the search page; any error keeps the usual search. The plan of the project must include product search.';

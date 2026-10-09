@@ -27,7 +27,7 @@ $sites = Config::sites();
 $fields = [
     'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password',
     'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
-    'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
+    'part_search' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
 ];
 $notes = [];
 
@@ -73,7 +73,7 @@ $stats = Queue::stats();
     <?php foreach ($sites as $siteId => $language) { ?>
         <?php $control->BeginNextTab(); ?>
         <?php foreach ($fields as $name => $type) { ?>
-            <?php $value = Config::get($name, $siteId, str_starts_with($name, 'part_') ? 'Y' : ''); ?>
+            <?php $value = Config::get($name, $siteId, str_starts_with($name, 'part_') && $name !== 'part_search' ? 'Y' : ''); ?>
             <tr>
                 <td width="40%"><label for="<?= $siteId . '_' . $name ?>"><?= Loc::getMessage('ONETRACE_OPTIONS_' . strtoupper($name)) ?></label></td>
                 <td width="60%">

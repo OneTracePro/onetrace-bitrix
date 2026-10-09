@@ -23,6 +23,9 @@ final class Catalog
     /** @var array<int, int> section id => depth level */
     private static array $depths = [];
 
+    /** @var array<int, string> section id => XML_ID */
+    private static array $sectionXml = [];
+
     /**
      * Product infoblocks (not offers) of the trade catalog bound to a site.
      *
@@ -58,6 +61,40 @@ final class Catalog
         $iblockId = (int) \CIBlockElement::GetIBlockByID($elementId);
 
         return $iblockId > 0 && CatalogIblockTable::getRow(['select' => ['IBLOCK_ID'], 'filter' => ['=IBLOCK_ID' => $iblockId]]) !== null;
+    }
+
+    /**
+     * The products of the uploaded catalogs for an element of a translation copy (a site in another language): the
+     * elements with its XML_ID in the infoblocks of the catalog sites; the element itself when it is not a copy.
+     *
+     * @return list<int>
+     */
+    public static function mainProducts(int $elementId): array
+    {
+        $element = \CIBlockElement::GetList([], ['ID' => $elementId], false, false, ['ID', 'IBLOCK_ID', 'XML_ID'])->Fetch();
+
+        if (!is_array($element)) {
+            return [$elementId];
+        }
+
+        $main = [];
+
+        foreach (Config::catalogSites() as $siteId) {
+            $main = array_merge($main, self::iblocks($siteId));
+        }
+
+        if (in_array((int) $element['IBLOCK_ID'], $main, true) || (string) $element['XML_ID'] === '' || $main === []) {
+            return [$elementId];
+        }
+
+        $ids = [];
+        $rows = \CIBlockElement::GetList([], ['IBLOCK_ID' => $main, 'XML_ID' => (string) $element['XML_ID']], false, false, ['ID']);
+
+        while ($row = $rows->Fetch()) {
+            $ids[] = (int) $row['ID'];
+        }
+
+        return $ids;
     }
 
     /**
@@ -100,10 +137,11 @@ final class Catalog
         $items = [];
         $categoryIds = [];
         $found = [];
+        $sources = [];
 
         if ($iblocks !== [] && $productIds !== []) {
             $elements = \CIBlockElement::GetList([], ['ID' => $productIds, 'IBLOCK_ID' => $iblocks], false, false, [
-                'ID', 'IBLOCK_ID', 'NAME', 'ACTIVE', 'DETAIL_PAGE_URL', 'DETAIL_PICTURE', 'PREVIEW_PICTURE', 'IBLOCK_SECTION_ID',
+                'ID', 'IBLOCK_ID', 'NAME', 'ACTIVE', 'DETAIL_PAGE_URL', 'DETAIL_PICTURE', 'PREVIEW_PICTURE', 'IBLOCK_SECTION_ID', 'XML_ID',
             ]);
             $base = rtrim(Connection::siteUrl($siteId), '/');
 
@@ -113,13 +151,100 @@ final class Catalog
                 $found[] = $id;
                 $categories = self::categoryIds($id);
                 $categoryIds = array_merge($categoryIds, $categories);
-                $items[] = self::item($siteId, $fields, $element->GetProperties(), $categories, $base);
+                $properties = $element->GetProperties();
+                $items[] = self::item($siteId, $fields, $properties, $categories, $base);
+                $sources[] = ['xml' => (string) $fields['XML_ID'], 'labels' => array_map(static fn (array $attribute): string => $attribute[0], self::attributes((int) $fields['IBLOCK_ID'], $properties)[1])];
             }
         }
 
         $missing = array_values(array_map('strval', array_diff($productIds, $found)));
+        $categories = self::categories(array_unique($categoryIds));
 
-        return [$items, self::categories(array_unique($categoryIds)), $missing];
+        foreach (Config::translationSites($siteId) as $language => $translationSiteId) {
+            [$items, $categories] = self::translate($translationSiteId, $language, $items, $sources, $categories);
+        }
+
+        return [$items, $categories, $missing];
+    }
+
+    /**
+     * Translations from a site of the project in another language: its copies of the products and sections (the same
+     * XML_ID) give the name, the link of that site and the values of the attributes (under the labels of the main site).
+     *
+     * @param list<array<string, mixed>> $items
+     * @param list<array{xml: string, labels: array<string, string>}> $sources the main XML_ID and attribute labels by code
+     * @param list<array<string, mixed>> $categories
+     *
+     * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    private static function translate(string $siteId, string $language, array $items, array $sources, array $categories): array
+    {
+        $iblocks = self::iblocks($siteId);
+        $xmlIds = array_values(array_filter(array_column($sources, 'xml')));
+
+        if ($iblocks === [] || $xmlIds === []) {
+            return [$items, $categories];
+        }
+
+        $copies = [];
+        $base = rtrim(Connection::siteUrl($siteId), '/');
+        $elements = \CIBlockElement::GetList([], ['XML_ID' => $xmlIds, 'IBLOCK_ID' => $iblocks, 'ACTIVE' => 'Y'], false, false, ['ID', 'IBLOCK_ID', 'NAME', 'DETAIL_PAGE_URL', 'XML_ID']);
+
+        while ($element = $elements->GetNextElement()) {
+            $fields = $element->GetFields();
+            $copies[(string) $fields['XML_ID']] ??= [
+                'name' => html_entity_decode((string) $fields['~NAME']),
+                'url' => (string) $fields['~DETAIL_PAGE_URL'] !== '' ? self::absolute((string) $fields['~DETAIL_PAGE_URL'], $base) : null,
+                'values' => array_map(static fn (array $attribute): string => $attribute[1], self::attributes((int) $fields['IBLOCK_ID'], $element->GetProperties())[1]),
+            ];
+        }
+
+        foreach ($items as $index => $item) {
+            $copy = $copies[$sources[$index]['xml']] ?? null;
+
+            if ($copy === null || $sources[$index]['xml'] === '') {
+                continue;
+            }
+
+            $params = [];
+
+            foreach ($sources[$index]['labels'] as $code => $label) {
+                if (isset($copy['values'][$code]) && $copy['values'][$code] !== ($item['params'][$label] ?? null)) {
+                    $params[$label] = $copy['values'][$code];
+                }
+            }
+
+            $items[$index] = CatalogItem::translate($item, $language, $copy['name'] !== $item['name'] ? $copy['name'] : null, $copy['url'] !== ($item['url'] ?? null) ? $copy['url'] : null, $params);
+        }
+
+        $sectionXml = [];
+
+        foreach ($categories as $category) {
+            $xml = (string) (self::$sectionXml[(int) $category['id']] ?? '');
+
+            if ($xml !== '') {
+                $sectionXml[$xml] = true;
+            }
+        }
+
+        if ($sectionXml !== []) {
+            $names = [];
+            $sections = \CIBlockSection::GetList([], ['IBLOCK_ID' => $iblocks, 'XML_ID' => array_keys($sectionXml)], false, ['ID', 'NAME', 'XML_ID']);
+
+            while ($section = $sections->Fetch()) {
+                $names[(string) $section['XML_ID']] ??= html_entity_decode((string) $section['NAME']);
+            }
+
+            foreach ($categories as $index => $category) {
+                $name = $names[(string) (self::$sectionXml[(int) $category['id']] ?? '')] ?? null;
+
+                if ($name !== null && $name !== $category['name']) {
+                    $categories[$index] = CatalogItem::translateCategory($category, $language, $name);
+                }
+            }
+        }
+
+        return [$items, $categories];
     }
 
     /**
@@ -168,7 +293,8 @@ final class Catalog
         $picture = (int) ($fields['DETAIL_PICTURE'] ?: $fields['PREVIEW_PICTURE']);
         $image = $picture > 0 ? (string) \CFile::GetPath($picture) : '';
         $url = (string) $fields['~DETAIL_PAGE_URL'];
-        [$brand, $params] = self::attributes((int) $fields['IBLOCK_ID'], $properties);
+        [$brand, $attributes] = self::attributes((int) $fields['IBLOCK_ID'], $properties);
+        $params = array_column($attributes, 1, 0);
 
         return CatalogItem::make(
             $id,
@@ -231,12 +357,12 @@ final class Catalog
     }
 
     /**
-     * Brand (property BRAND, BRAND_REF or MANUFACTURER) and the values of the smart filter properties:
-     * "Color" => "White, Black".
+     * Brand (property BRAND, BRAND_REF or MANUFACTURER) and the values of the smart filter properties by code:
+     * "COLOR" => ["Color", "White, Black"].
      *
      * @param array<string, array<string, mixed>> $properties
      *
-     * @return array{0: string|null, 1: array<string, string>}
+     * @return array{0: string|null, 1: array<string, array{0: string, 1: string}>}
      */
     private static function attributes(int $iblockId, array $properties): array
     {
@@ -269,7 +395,7 @@ final class Catalog
             if ($isBrand) {
                 $brand ??= $value;
             } else {
-                $params[(string) $property['NAME']] = $value;
+                $params[(string) $code] = [(string) $property['NAME'], $value];
             }
         }
 
@@ -310,10 +436,11 @@ final class Catalog
         $all = [];
 
         foreach ($ids as $id) {
-            $chain = \CIBlockSection::GetNavChain(false, $id, ['ID', 'NAME', 'IBLOCK_SECTION_ID'], true);
+            $chain = \CIBlockSection::GetNavChain(false, $id, ['ID', 'NAME', 'IBLOCK_SECTION_ID', 'XML_ID'], true);
 
             foreach ($chain as $section) {
                 $sectionId = (int) $section['ID'];
+                self::$sectionXml[$sectionId] = (string) $section['XML_ID'];
                 self::$sections[$sectionId] ??= CatalogItem::category($sectionId, html_entity_decode((string) $section['NAME']), (int) $section['IBLOCK_SECTION_ID'] ?: null);
                 $all[$sectionId] = self::$sections[$sectionId];
             }

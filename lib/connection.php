@@ -16,7 +16,7 @@ use OneTrace\Commerce\Messages;
  */
 final class Connection
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.1.0';
 
     /** @var array<string, Client> */
     private static array $clients = [];
@@ -25,17 +25,18 @@ final class Connection
     private static array $options = [];
 
     /**
-     * @param string $key "secret" or "write"
+     * @param string $key "secret", "write" or "search" (the write key with short timeouts: a visitor waits for it)
      */
     public static function client(string $siteId, string $key = 'secret'): Client
     {
         $cacheKey = $siteId . ':' . $key;
+        $write = $key === 'write' || $key === 'search';
 
         if (!isset(self::$clients[$cacheKey])) {
             self::$clients[$cacheKey] = new Client(Config::url($siteId), [
-                $key === 'write' ? 'write_key' : 'secret_key' => ($key === 'write' ? Config::writeKey($siteId) : Config::secretKey($siteId)) ?: null,
-                'timeout' => 10.0,
-                'connect_timeout' => 5.0,
+                $write ? 'write_key' : 'secret_key' => ($write ? Config::writeKey($siteId) : Config::secretKey($siteId)) ?: null,
+                'timeout' => $key === 'search' ? 3.0 : 10.0,
+                'connect_timeout' => $key === 'search' ? 2.0 : 5.0,
                 // The queue retries with long pauses; the client must not hold the agent.
                 'max_retries' => 0,
                 'user_agent' => sprintf('onetrace-bitrix/%s Bitrix/%s', self::VERSION, (string) ModuleManager::getVersion('main')),

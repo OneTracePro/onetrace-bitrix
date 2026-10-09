@@ -2,6 +2,12 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.1.0 — 2026-10-10
+
+- Product search from OneTrace (the "Product search" setting, off by default): the component onetrace:catalog.search replaces bitrix:catalog.search with the same parameters — the products, their order and their number come from the platform (word forms, typos, the wrong keyboard layout, the visitor's interests) and are shown by catalog.section of the store, with sorting by price and pages over the number found; a query with a redirect rule opens its page; the results page sends the `search` event. Any API error keeps the usual search.
+- Suggestions while typing in the search fields of the store (the tracker instead of the title search popup); a category leads to its section page.
+- Catalog languages: sites of one project in other languages with their copies of the catalog (the same XML_ID, as the exchange with 1C makes it) add translations of product names, links and attributes and of section names; a changed copy uploads the main product.
+
 ## 1.0.0 — 2026-10-10
 
 First release.

@@ -36,3 +36,5 @@ $MESS['ONETRACE_OPTIONS_SAVE'] = 'Сохранить';
 $MESS['ONETRACE_OPTIONS_SAVED'] = 'Настройки сохранены.';
 $MESS['ONETRACE_OPTIONS_SYNCED'] = 'Товаров в очереди на выгрузку: #COUNT#.';
 $MESS['ONETRACE_OPTIONS_FLUSHED'] = 'Отправлено: #SENT#, отложено для повтора: #RETRIED#, отброшено: #DROPPED#.';
+$MESS['ONETRACE_OPTIONS_PART_SEARCH'] = 'Поиск по товарам';
+$MESS['ONETRACE_OPTIONS_PART_SEARCH_HINT'] = 'Результаты поиска по каталогу и подсказки при вводе из OneTrace: словоформы, опечатки, неверная раскладка, интересы посетителя, правила «Сайт → Поиск». Замените компонент bitrix:catalog.search на onetrace:catalog.search в странице поиска; при любой ошибке работает обычный поиск. Поиск должен входить в тариф проекта.';

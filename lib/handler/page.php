@@ -66,6 +66,24 @@ final class Page
         );
 
         Asset::getInstance()->addString($script, false, AssetLocation::AFTER_JS_KERNEL);
+
+        if (\Onetrace\Connector\Search\Search::enabled($siteId)) {
+            Asset::getInstance()->addString(self::searchBoxes(), false, AssetLocation::AFTER_JS_KERNEL);
+        }
+    }
+
+    /**
+     * Suggestions of the tracker in the search fields of the store (search.title and forms with "q") instead of the
+     * title search popup of Bitrix; a category leads to its section page through the module's service.
+     */
+    private static function searchBoxes(): string
+    {
+        return sprintf(
+            "<style>.title-search-result{display:none!important}</style><script>document.addEventListener('DOMContentLoaded',function(){"
+            . "document.querySelectorAll('form input[name=\"q\"]').forEach(function(i){if(i.type==='hidden')return;i.setAttribute('data-cdp-search','');i.setAttribute('data-category-url',%s);i.setAttribute('autocomplete','off')});"
+            . "window.cdp&&cdp.searchBoxes&&cdp.searchBoxes()});</script>",
+            json_encode('/bitrix/services/' . Config::MODULE . '/category.php?id={id}', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS)
+        );
     }
 
     /**

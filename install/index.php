@@ -119,6 +119,7 @@ class onetrace_connector extends CModule
     public function UnInstallFiles(): bool
     {
         DeleteDirFilesEx('/bitrix/components/onetrace/recommendations');
+        DeleteDirFilesEx('/bitrix/components/onetrace/catalog.search');
         DeleteDirFilesEx('/bitrix/services/' . $this->MODULE_ID);
 
         foreach (\Onetrace\Connector\Config::sites() as $siteId => $language) {

@@ -124,6 +124,27 @@ final class Config
         return array_values($sites);
     }
 
+    /**
+     * Other languages of the catalog of a site from catalogSites(): sites of the same project with another language
+     * (the first one per language). Their copies of the products (the same XML_ID) are translations.
+     *
+     * @return array<string, string> language ("en") => site id
+     */
+    public static function translationSites(string $mainSiteId): array
+    {
+        $project = self::url($mainSiteId) . '|' . self::secretKey($mainSiteId);
+        $main = self::language($mainSiteId);
+        $languages = [];
+
+        foreach (self::sites() as $siteId => $language) {
+            if ($language !== $main && self::server($siteId) && self::enabled('catalog', $siteId) && self::url($siteId) . '|' . self::secretKey($siteId) === $project) {
+                $languages[$language] ??= $siteId;
+            }
+        }
+
+        return $languages;
+    }
+
     /** Language of a site: "ru". */
     public static function language(string $siteId): string
     {

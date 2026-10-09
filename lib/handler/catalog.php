@@ -30,7 +30,13 @@ final class Catalog
     {
         try {
             if (CatalogItems::isCatalogElement((int) $id)) {
-                self::$deleting[(int) $id] = CatalogItems::catalogIds((int) $id);
+                $products = [];
+
+                foreach (CatalogItems::catalogIds((int) $id) as $productId) {
+                    $products = array_merge($products, CatalogItems::mainProducts($productId));
+                }
+
+                self::$deleting[(int) $id] = $products;
             }
         } catch (\Throwable $error) {
             Queue::log('catalog ' . $id . ': ' . $error->getMessage());
@@ -80,8 +86,11 @@ final class Catalog
                 return;
             }
 
+            // A copy of another language (the same XML_ID) uploads the main product with its translations.
             foreach (CatalogItems::catalogIds($elementId) as $productId) {
-                Queue::product($productId);
+                foreach (CatalogItems::mainProducts($productId) as $mainId) {
+                    Queue::product($mainId);
+                }
             }
         } catch (\Throwable $error) {
             Queue::log('catalog ' . $elementId . ': ' . $error->getMessage());

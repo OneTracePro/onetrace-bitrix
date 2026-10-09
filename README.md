@@ -24,6 +24,7 @@ Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.
 | `product_viewed` | the product page: the view counter of the standard catalog.element templates | server, works with the composite cache |
 | Page views | the storefront | browser tracker |
 | Product catalog | product, price and stock changes, daily, and the "Upload the whole catalog" button | server, `products.write` |
+| `search` | the first page of the catalog search results, with "Product search" on | server |
 
 Every Bitrix order has a user (the guest checkout registers one), so orders, the cart and the account land in one profile; the browser of the checkout is saved with the order, so its later events (payment, refund) use it too.
 
@@ -38,6 +39,23 @@ Every Bitrix order has a user (the guest checkout registers one), so orders, the
 ## Catalog
 
 The catalog is made of the products of the commercial catalog infoblocks bound to the site. Trade offers are not separate products: an offer uploads its parent, and a product with offers takes the lowest offer price. The price is what a guest pays with discounts; the old price — the price before discounts. Categories are the element sections with their parents; the brand — the property `BRAND`, `BRAND_REF` or `MANUFACTURER`; attributes — the properties of the smart filter.
+
+## Product search
+
+Turn on **Product search** in the settings (the plan of the project must include it) and replace the component in the search page of the catalog — in the template of the complex component `bitrix:catalog` it is `search.php`:
+
+```php
+$APPLICATION->IncludeComponent('onetrace:catalog.search', '', $params…); // instead of 'bitrix:catalog.search'
+```
+
+- The parameters stay the same. The products, their order and their number come from OneTrace — word forms, typos, a query typed in the wrong keyboard layout, the visitor's interests — and are shown by `catalog.section` of your store. Sorting by price goes to the platform.
+- A query with a redirect rule (Site → Search of the platform, e.g. "delivery" → the delivery page) opens the rule's page.
+- The search fields of the store (`search.title` and forms with `q`) show suggestions of the tracker while typing instead of the title search popup.
+- Any error of the platform keeps `bitrix:catalog.search`.
+
+## Languages of the catalog
+
+The catalog of a project comes from its first site. Other sites connected to the same project (the same address and secret key) with another language have their own copies of the catalog — as the exchange with 1C makes them — and the products and sections with the same `XML_ID` add translations: names, links on that site and the values of the attributes. The platform shows recommendations, widgets, search results and emails in the visitor's language.
 
 ## Recommendations and Web Push
 

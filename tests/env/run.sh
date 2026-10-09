@@ -11,7 +11,8 @@ DIST=.cache/small_business_encode.tar.gz
 
 if [ ! -s "$DIST" ]; then
     mkdir -p .cache
-    curl -fsSL --retry 3 -A 'Mozilla/5.0' -o "$DIST.part" https://www.1c-bitrix.ru/download/small_business_encode.tar.gz
+    # ~375 MB: a broken transfer resumes where it stopped.
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -C - -A 'Mozilla/5.0' -o "$DIST.part" https://www.1c-bitrix.ru/download/small_business_encode.tar.gz
     gzip -t "$DIST.part" && mv "$DIST.part" "$DIST"
 fi
 

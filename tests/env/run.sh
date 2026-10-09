@@ -15,7 +15,13 @@ if [ ! -s "$DIST" ]; then
     gzip -t "$DIST.part" && mv "$DIST.part" "$DIST"
 fi
 
-docker compose up -d --build --wait >/dev/null
+# Docker Hub sometimes times out on CI runners: the images are pulled with retries before the start.
+for try in 1 2 3 4 5; do
+    docker compose pull -q db && docker compose build -q web && break
+    [ "$try" = 5 ] && exit 1
+    sleep $((try * 15))
+done
+docker compose up -d --wait >/dev/null
 
 if ! docker compose exec -T web test -f /var/www/html/bitrix/php_interface/dbconn.php; then
     docker compose cp "$DIST" web:/tmp/distrib.tar.gz >/dev/null

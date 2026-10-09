@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  schedule:
+    # Weekly: a new Bitrix release (the trial distribution is always the latest) reaches the tests before users do.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integration:
+    name: Bitrix Small business · PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.4']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress
+      # The distribution (~375 MB) once a week: the cache key changes every Monday.
+      - id: week
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: tests/env/.cache
+          key: bitrix-small-business-${{ steps.week.outputs.week }}
+      - name: Integration tests on a real Bitrix
+        run: tests/env/run.sh
+        env:
+          PHP_VERSION: ${{ matrix.php }}
+      - name: Storefront over HTTP
+        run: tests/env/smoke.sh
+
+  syntax:
+    name: PHP ${{ matrix.php }} syntax
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.5']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: find include.php options.php install lib lang -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [integration, syntax]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+          extensions: zip
+      - run: composer install --no-dev --no-interaction --no-progress
+      - run: php bin/build.php
+      - uses: actions/upload-artifact@v7
+        with:
+          name: onetrace.connector
+          path: dist/*.zip
+      - name: Attach the archives to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/onetrace.connector.zip dist/marketplace.zip --clobber

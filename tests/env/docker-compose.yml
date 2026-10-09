@@ -1,0 +1,30 @@
+# Тестовый 1С-Битрикс «Малый бизнес» (пробная версия) с этим модулем: tests/env/run.sh.
+name: onetrace-bitrix
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: bitrix
+      MARIADB_USER: bitrix
+      MARIADB_PASSWORD: bitrix
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --sql-mode=]
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect]
+      interval: 2s
+      retries: 30
+  web:
+    build:
+      context: .
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.3}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BITRIX_PORT:-8895}:80"
+    volumes:
+      - www:/var/www/html
+      - ../..:/var/www/html/local/modules/onetrace.connector
+volumes:
+  www:

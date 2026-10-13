@@ -133,6 +133,7 @@ class onetrace_connector extends CModule
     {
         \CAgent::AddAgent('\Onetrace\Connector\Agent::flush();', $this->MODULE_ID, 'N', 60);
         \CAgent::AddAgent('\Onetrace\Connector\Agent::catalog();', $this->MODULE_ID, 'N', 86400);
+        \CAgent::AddAgent('\Onetrace\Connector\Agent::loyalty();', $this->MODULE_ID, 'N', 60);
     }
 
     public function UnInstallAgents(): void

@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.2.0 — 2026-10-13
+
+- Bonus points of the OneTrace loyalty program (the "Bonus points" setting, off by default) with a choice per site: a paid payment "Оплата баллами" (prices unchanged, "Paid" and "Left to pay" in the checkout total) or a discount of the order lines.
+- The block above the order total of sale.order.ajax: the balance, the most points the order allows, the points it earns; applying and removing points; a sign-in link for guests. The points are held for 30 minutes, held again when the cart changes and confirmed with the order number when the order is placed; the agent retries failed confirmations.
+- The component onetrace:loyalty.account for the personal section: the balance, pending points, the history and joining the program.
+- The amount of `order_completed` excludes the points payment.
+- The settings page no longer prints the stored secret key: an empty field keeps it.
+- onetrace-php 1.6.
+
 ## 1.1.0 — 2026-10-10
 
 - Product search from OneTrace (the "Product search" setting, off by default): the component onetrace:catalog.search replaces bitrix:catalog.search with the same parameters — the products, their order and their number come from the platform (word forms, typos, the wrong keyboard layout, the visitor's interests) and are shown by catalog.section of the store, with sorting by price and pages over the number found; a query with a redirect rule opens its page; the results page sends the `search` event. Any API error keeps the usual search.

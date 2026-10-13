@@ -43,6 +43,10 @@ final class Status
                 if ($type === 'secret' && !in_array('products.write', (array) ($key['scopes'] ?? []), true)) {
                     $lines[] = ['ok' => false, 'text' => (string) Loc::getMessage('ONETRACE_STATUS_NO_CATALOG')];
                 }
+
+                if ($type === 'secret' && Config::get('loyalty', $siteId, 'N') !== 'N' && array_diff(['loyalty.read', 'loyalty.write'], (array) ($key['scopes'] ?? [])) !== []) {
+                    $lines[] = ['ok' => false, 'text' => (string) Loc::getMessage('ONETRACE_STATUS_NO_LOYALTY')];
+                }
             } catch (\Throwable $error) {
                 $lines[] = ['ok' => false, 'text' => $label . ': ' . $error->getMessage()];
             }

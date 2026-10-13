@@ -57,6 +57,23 @@ $APPLICATION->IncludeComponent('onetrace:catalog.search', '', $params…); // in
 
 The catalog of a project comes from its first site. Other sites connected to the same project (the same address and secret key) with another language have their own copies of the catalog — as the exchange with 1C makes them — and the products and sections with the same `XML_ID` add translations: names, links on that site and the values of the attributes. The platform shows recommendations, widgets, search results and emails in the visitor's language.
 
+## Bonus points
+
+Turn on **Bonus points** in the settings (the loyalty program of the project must be active; the secret key needs the `loyalty.read` and `loyalty.write` scopes) and choose how the points go into the order:
+
+- **Payment with points** — the prices stay as they are; the order gets a second, paid payment of the module's pay system "Bonus points" ("Оплата баллами" on Russian sites; inactive, customers do not choose it), and the checkout total shows "Paid" and "Left to pay". Refunds and accounting see the points as a payment.
+- **Discount on the order lines** — the points lower the prices of the lines in proportion; the checkout shows the saving. Use it when the store's payment flow expects one payment per order.
+
+The checkout (`sale.order.ajax`, any template) shows a block above the order total: the balance, the most points the order allows (the share is set in the program) and the points the order will earn. A signed-in customer applies the points, a guest sees a link to sign in. The points are held for 30 minutes and held again if the cart changes; placing the order confirms them with the order number, and failed confirmations are retried by the agent. The amount of `order_completed` is what is paid with money.
+
+Customers see their points on a page of the personal section with the component:
+
+```php
+$APPLICATION->IncludeComponent('onetrace:loyalty.account', '', []);
+```
+
+— the balance, the points that become available after the return period, the history, and the "Join" button for those who are not members yet.
+
 ## Recommendations and Web Push
 
 - Widgets from **Site → Widgets** of the platform: place the component **OneTrace recommendations** (`onetrace:recommendations`) in the product page, the cart or any page and set the widget id; pass the product ids of the page (`ITEMS`) and the section (`CATEGORY`) where the widget type needs them.

@@ -81,7 +81,8 @@ final class Mapper
 
         return (new Order(
             (string) ($order->getField('ACCOUNT_NUMBER') ?: $order->getId()),
-            (float) $order->getPrice(),
+            // Bonus points paid as a payment (the payment mode of the loyalty program) are not money: the amount is the rest.
+            max(0.0, (float) $order->getPrice() - Loyalty::paidWithPoints($order)),
             (string) $order->getCurrency(),
             $placedAt,
             self::orderCustomer($order),

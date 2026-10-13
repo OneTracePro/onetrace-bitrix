@@ -102,7 +102,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
     /**
      * @param array<string, string> $properties order property values by code
      */
-    protected function order(int $productId, int $userId, int $quantity = 2, string $email = 'anna@example.com', array $properties = []): Order
+    protected function order(int $productId, int $userId, int $quantity = 2, string $email = 'anna@example.com', array $properties = [], ?callable $beforeSave = null): Order
     {
         $basket = Basket::create(self::SITE);
         $item = $basket->createItem('catalog', $productId);
@@ -129,6 +129,11 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
         foreach ($properties as $code => $value) {
             $collection->getItemByOrderPropertyCode($code)?->setValue($value);
         }
+
+        if ($beforeSave !== null) {
+            $beforeSave($order);
+        }
+
         $result = $order->save();
         self::assertTrue($result->isSuccess(), implode('; ', $result->getErrorMessages()));
 

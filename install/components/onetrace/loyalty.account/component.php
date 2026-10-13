@@ -2,7 +2,8 @@
 
 /**
  * Bonus points of the signed-in customer (the personal section): the balance, points waiting for the return period,
- * the tier, points expiring soon and the latest operations; joining the program with explicit enrollment.
+ * the tier, points expiring soon and the latest operations, the referral link and active promo codes; joining the program
+ * with explicit enrollment.
  *
  * @var array $arParams
  * @var array $arResult
@@ -29,7 +30,7 @@ if (!is_object($USER) || !$USER->IsAuthorized()) {
 $profile = \Onetrace\Connector\Loyalty::profile();
 $client = \Onetrace\Connector\Connection::client(SITE_ID);
 $request = \Bitrix\Main\Application::getInstance()->getContext()->getRequest();
-$arResult = ['STATE' => 'error', 'ACCOUNT' => [], 'OPERATIONS' => [], 'JOINED' => false];
+$arResult = ['STATE' => 'error', 'ACCOUNT' => [], 'OPERATIONS' => [], 'PROMO_CODES' => [], 'JOINED' => false];
 
 if ($request->isPost() && $request->getPost('onetrace_loyalty_join') === 'Y' && check_bitrix_sessid()) {
     try {
@@ -45,6 +46,14 @@ try {
     $arResult['ACCOUNT'] = $account;
     $arResult['OPERATIONS'] = !empty($account['member']) ? $client->loyalty()->transactions($profile['type'], $profile['value'], ['limit' => 10])->getData() : [];
     $arResult['STATE'] = !empty($account['member']) ? 'member' : 'join';
+
+    // Active promo codes of the customer; nothing without the promo.read permission of the key.
+    try {
+        $codes = $client->promo()->profileCodes($profile['type'], $profile['value']);
+        $arResult['PROMO_CODES'] = array_values(array_filter(is_array($codes['data'] ?? null) ? $codes['data'] : [], static fn ($code): bool => is_array($code) && !empty($code['active']) && is_string($code['code'] ?? null)));
+    } catch (\Throwable $error) {
+        $arResult['PROMO_CODES'] = [];
+    }
 } catch (\OneTrace\Exception\NotFoundException $error) {
     $arResult['STATE'] = 'join';
 } catch (\Throwable $error) {

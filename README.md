@@ -74,6 +74,18 @@ $APPLICATION->IncludeComponent('onetrace:loyalty.account', '', []);
 
 — the balance, the points that become available after the return period, the history, and the "Join" button for those who are not members yet.
 
+## Promo codes
+
+Pools of promo codes are set up in the **Promo codes** section of the platform; the discount is a cart rule of the store (**Store → Marketing → Cart rules**, with coupons). Bind the rule to the pool in the setting "Promo codes" of the site, one per line:
+
+```
+welcome = 12
+```
+
+Every 5 minutes (agent) new and changed unique codes of the pool become one-order coupons of the rule with the expiry of the code. Coupons of other rules with the same code are not touched; pools with one shared code are not synced — add that coupon to a rule yourself. The order events carry the coupon, so the platform counts the use. The secret key needs `promo.read`.
+
+**Referrals** (with bonus points on): a new user with the tracker's `cdp_ref` cookie of a `?ref=` link — the friend's code goes to the platform, and the friend gets the welcome reward; the member gets points for the friend's first order. The component `onetrace:loyalty.account` shows the referral link and the active promo codes of the customer.
+
 ## Recommendations and Web Push
 
 - Widgets from **Site → Widgets** of the platform: place the component **OneTrace recommendations** (`onetrace:recommendations`) in the product page, the cart or any page and set the widget id; pass the product ids of the page (`ITEMS`) and the section (`CATEGORY`) where the widget type needs them.

@@ -15,6 +15,7 @@ use Onetrace\Connector\Config;
 use Onetrace\Connector\Connection;
 use Onetrace\Connector\Events;
 use Onetrace\Connector\Loyalty;
+use Onetrace\Connector\PromoSync;
 use Onetrace\Connector\Queue;
 use Onetrace\Connector\Status;
 
@@ -30,7 +31,7 @@ $fields = [
     'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password',
     'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
     'part_search' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
-    'loyalty' => 'select',
+    'loyalty' => 'select', 'promo_pools' => 'textarea',
 ];
 /** Choices of the select fields: the bonus points are off, a payment of the order or a discount on its lines. */
 $choices = ['loyalty' => ['N', Loyalty::MODE_PAYMENT, Loyalty::MODE_DISCOUNT]];
@@ -69,12 +70,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
                     CAgent::AddAgent('\\Onetrace\\Connector\\Agent::loyalty();', $module, 'N', 60);
                 }
 
+                if (!CAgent::GetList([], ['NAME' => '\\Onetrace\\Connector\\Agent::referrals();'])->Fetch()) {
+                    CAgent::AddAgent('\\Onetrace\\Connector\\Agent::referrals();', $module, 'N', 60);
+                }
+
                 if (in_array(Loyalty::MODE_PAYMENT, $modes, true) && Loader::includeModule('sale')) {
                     Loyalty::paySystemId();
                 }
             } catch (\Throwable $error) {
                 $notes[] = ['ok' => false, 'text' => $error->getMessage()];
             }
+        }
+
+        // Promo codes: the agent of this version (an upgrade from an older module).
+        if (array_filter(array_keys($sites), static fn (string $siteId): bool => PromoSync::pools($siteId) !== []) !== []
+            && !CAgent::GetList([], ['NAME' => '\\Onetrace\\Connector\\Agent::promo();'])->Fetch()) {
+            CAgent::AddAgent('\\Onetrace\\Connector\\Agent::promo();', $module, 'N', 300);
         }
 
         Queue::resume();
@@ -122,6 +133,8 @@ $stats = Queue::stats();
                                 <option value="<?= htmlspecialcharsbx($choice) ?>"<?= ($value ?: 'N') === $choice ? ' selected' : '' ?>><?= Loc::getMessage('ONETRACE_OPTIONS_' . strtoupper($name) . '_' . strtoupper($choice)) ?></option>
                             <?php } ?>
                         </select>
+                    <?php } elseif ($type === 'textarea') { ?>
+                        <textarea id="<?= $siteId . '_' . $name ?>" name="site[<?= $siteId ?>][<?= $name ?>]" rows="3" cols="60" placeholder="welcome = 12"><?= htmlspecialcharsbx($value) ?></textarea>
                     <?php } elseif ($type === 'password') { ?>
                         <input type="password" id="<?= $siteId . '_' . $name ?>" name="site[<?= $siteId ?>][<?= $name ?>]" value="" size="60" autocomplete="new-password" placeholder="<?= $value !== '' ? Loc::getMessage('ONETRACE_OPTIONS_SECRET_SAVED') : 'cdp_sk_…' ?>">
                     <?php } else { ?>

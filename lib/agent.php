@@ -34,6 +34,30 @@ final class Agent
         return '\\' . self::class . '::loyalty();';
     }
 
+    /** Every minute: friend's codes of new users waiting for the platform. */
+    public static function referrals(): string
+    {
+        try {
+            Referrals::process();
+        } catch (\Throwable $error) {
+            Queue::log('referrals: ' . $error->getMessage());
+        }
+
+        return '\\' . self::class . '::referrals();';
+    }
+
+    /** Every 5 minutes: codes of promo code pools as coupons of cart rules. */
+    public static function promo(): string
+    {
+        try {
+            PromoSync::run();
+        } catch (\Throwable $error) {
+            Queue::log('promo: ' . $error->getMessage());
+        }
+
+        return '\\' . self::class . '::promo();';
+    }
+
     /** Daily: the whole catalog into the queue. */
     public static function catalog(): string
     {

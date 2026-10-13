@@ -2,6 +2,13 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.3.0 — 2026-10-13
+
+- Promo codes: the "Promo codes" setting of a site binds a pool of OneTrace promo codes to a cart rule ("pool_key = rule id" per line). Every 5 minutes (agent) new and changed codes of the pool come by the cursor of the platform and become one-order coupons of the rule with the expiry of the code; coupons of other rules with the same code are left as they are. The connection check warns about a missing promo.read permission.
+- Referrals: a new user with the tracker's `cdp_ref` cookie of a `?ref=` link — the friend's code is sent to the platform by an agent (`loyalty()->refer()`), repeated while the user is unknown to it; the friend gets the welcome reward at once.
+- The component onetrace:loyalty.account: the referral link with a copy button, friends who came and the points for them, active promo codes of the customer; referral rewards in the history.
+- onetrace-php 1.7.
+
 ## 1.2.0 — 2026-10-13
 
 - Bonus points of the OneTrace loyalty program (the "Bonus points" setting, off by default) with a choice per site: a paid payment "Оплата баллами" (prices unchanged, "Paid" and "Left to pay" in the checkout total) or a discount of the order lines.

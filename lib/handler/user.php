@@ -20,6 +20,13 @@ final class User
     {
         if ((int) ($fields['ID'] ?? 0) > 0 && ($fields['RESULT'] ?? true)) {
             self::identify((int) $fields['ID']);
+
+            // The friend's code of a referral link (ADR-103 of the platform): after the identify above.
+            try {
+                \Onetrace\Connector\Referrals::registered((int) $fields['ID'], (string) ($fields['LID'] ?? (\defined('SITE_ID') ? SITE_ID : '')));
+            } catch (\Throwable $error) {
+                \Onetrace\Connector\Queue::log('referral: ' . $error->getMessage());
+            }
         }
     }
 

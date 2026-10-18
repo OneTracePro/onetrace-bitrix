@@ -16,7 +16,7 @@ final class Config
     public const MODULE = 'onetrace.connector';
 
     /** Parts of the module that can be turned off one by one, all on by default except search. */
-    public const PARTS = ['tracker', 'orders', 'cart', 'catalog', 'newsletter'];
+    public const PARTS = ['tracker', 'orders', 'cart', 'catalog', 'newsletter', 'notify'];
 
     public static function get(string $name, ?string $siteId = null, string $default = ''): string
     {
@@ -81,6 +81,15 @@ final class Config
         $uid = self::get('widget_' . $place, $siteId);
 
         return preg_match('/^[a-z0-9]{1,16}$/', $uid) === 1 ? $uid : '';
+    }
+
+    /**
+     * The "Notify when available" form of the platform (the component onetrace:catalog.notify): the tracker draws it,
+     * so it needs the storefront part.
+     */
+    public static function notify(?string $siteId = null): bool
+    {
+        return self::storefront($siteId) && self::enabled('tracker', $siteId) && self::enabled('notify', $siteId);
     }
 
     public static function push(?string $siteId = null): bool

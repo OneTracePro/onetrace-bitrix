@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.4.0 — 2026-10-18
+
+- Stock: catalog items carry `stock` when the product keeps count — quantity tracing on and buying at zero off (the product's settings or the defaults of the "Commercial catalog" module); a product with offers — the sum of its active offers in stock when every offer keeps count and none is sold at zero. Products without tracing or sold at zero go without it. Orders, cancellations, the admin and store documents change the quantity through the catalog model, so the product is uploaded again as before. The platform uses the stock only with "Use stock levels from the API and plugins" on.
+- Wishlist: the deferred products of the cart ("Delayed") send `add_to_wishlist` and `remove_from_wishlist`; deferring a line takes it out of the cart (`remove_from_cart`), moving it back adds it again, a new deferred line is not an `add_to_cart` any more. Themes with their own "Favorites" can use `data-cdp-wishlist` / `data-cdp-wishlist-remove` of the tracker.
+- The component onetrace:catalog.notify: the place of the platform's "Notify me when available" form (`<div data-cdp-notify>`) on the page of a product that cannot be bought; the setting "Show the “Notify when available” form" (on by default) per site.
+- Saving the settings installs the components of the new version after an update; the removal deletes the component onetrace:loyalty.account too.
+- onetrace-php 1.10.
+
 ## 1.3.0 — 2026-10-13
 
 - Promo codes: the "Promo codes" setting of a site binds a pool of OneTrace promo codes to a cart rule ("pool_key = rule id" per line). Every 5 minutes (agent) new and changed codes of the pool come by the cursor of the platform and become one-order coupons of the rule with the expiry of the code; coupons of other rules with the same code are left as they are. The connection check warns about a missing promo.read permission.

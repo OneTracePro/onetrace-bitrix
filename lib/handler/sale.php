@@ -18,7 +18,8 @@ use Onetrace\Connector\Queue;
 
 /**
  * Orders and the cart from the server (module "sale"): placed, paid, cancelled and refunded orders with
- * deterministic message ids; cart changes and the checkout for visitors with the tracker cookie or signed in.
+ * deterministic message ids; cart changes, the deferred lines as the wishlist and the checkout for visitors with the
+ * tracker cookie or signed in.
  * The store must never fail because of OneTrace: errors go to the event log.
  */
 final class Sale
@@ -121,31 +122,60 @@ final class Sale
         });
     }
 
-    /** OnSaleBasketItemSaved: a cart line added or its quantity changed (not the lines of placed orders). */
+    /**
+     * OnSaleBasketItemSaved: a cart line added or its quantity changed (not the lines of placed orders). The deferred
+     * lines ("Отложенные", DELAY = Y) are the wishlist of Bitrix: deferring a line takes it out of the cart into the
+     * wishlist, moving it back — the other way round; a new deferred line goes only to the wishlist.
+     */
     public static function onBasketItemSaved(Event $event): void
     {
         $item = $event->getParameter('ENTITY');
 
-        if (!$item instanceof BasketItem || (int) $item->getField('ORDER_ID') > 0 || !$item->canBuy()) {
+        if (!$item instanceof BasketItem || (int) $item->getField('ORDER_ID') > 0) {
             return;
         }
 
         $before = (array) $event->getParameter('VALUES');
-        $old = $event->getParameter('IS_NEW') ? 0 : (int) ($before['QUANTITY'] ?? $item->getQuantity());
+        $isNew = (bool) $event->getParameter('IS_NEW');
+        $deferred = $item->isDelay();
+        // A changed DELAY is among the original values; null there — the line was saved without it (not deferred).
+        $wasDeferred = $isNew ? false : (array_key_exists('DELAY', $before) ? $before['DELAY'] === 'Y' : $deferred);
+        $old = $isNew ? 0 : (int) ($before['QUANTITY'] ?? $item->getQuantity());
+
+        if (!$isNew && $deferred !== $wasDeferred) {
+            if ($deferred) {
+                self::cart($item, 'remove_from_cart', $old, $item->canBuy());
+                self::cart($item, 'add_to_wishlist');
+            } else {
+                self::cart($item, 'remove_from_wishlist');
+                self::cart($item, 'add_to_cart', (int) $item->getQuantity(), $item->canBuy());
+            }
+
+            return;
+        }
+
+        if ($deferred) {
+            if ($isNew) {
+                self::cart($item, 'add_to_wishlist');
+            }
+
+            return;
+        }
+
         $delta = (int) $item->getQuantity() - $old;
 
         if ($delta !== 0) {
-            self::cart($item, $delta > 0 ? 'add_to_cart' : 'remove_from_cart', abs($delta));
+            self::cart($item, $delta > 0 ? 'add_to_cart' : 'remove_from_cart', abs($delta), $item->canBuy());
         }
     }
 
-    /** OnSaleBasketItemEntityDeleted: a cart line removed. */
+    /** OnSaleBasketItemEntityDeleted: a cart line removed; a deferred one leaves the wishlist. */
     public static function onBasketItemDeleted(Event $event): void
     {
         $item = $event->getParameter('ENTITY');
 
         if ($item instanceof BasketItem && (int) $item->getField('ORDER_ID') <= 0) {
-            self::cart($item, 'remove_from_cart', (int) $item->getQuantity());
+            $item->isDelay() ? self::cart($item, 'remove_from_wishlist') : self::cart($item, 'remove_from_cart', (int) $item->getQuantity());
         }
     }
 
@@ -205,10 +235,15 @@ final class Sale
         return $userId !== null || $anonymousId !== null ? new Customer($userId, $anonymousId) : null;
     }
 
-    private static function cart(BasketItem $item, string $event, int $quantity): void
+    /**
+     * A product event of a cart line: add_to_cart, remove_from_cart, add_to_wishlist or remove_from_wishlist (the
+     * wishlist events carry no quantity). Cart events only for lines that can be bought; the wishlist keeps products
+     * out of stock too — they wait for a "back in stock" journey.
+     */
+    private static function cart(BasketItem $item, string $event, int $quantity = 1, bool $canBuy = true): void
     {
         $siteId = (string) ($item->getField('LID') ?: (defined('SITE_ID') ? SITE_ID : ''));
-        $customer = self::visitor($siteId);
+        $customer = $canBuy ? self::visitor($siteId) : null;
 
         if ($customer !== null) {
             self::safely($event, static function () use ($siteId, $customer, $item, $event, $quantity): void {

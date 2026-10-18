@@ -13,7 +13,7 @@ use OneTrace\Commerce\CatalogItem;
 /**
  * Product catalog of a site on the platform: elements of the trade catalog infoblocks of the site. Trade offers
  * (SKU) are not separate products: an offer uploads its parent, prices of a product with offers are the lowest
- * offer prices. Attributes are the properties of the smart filter.
+ * offer prices, the stock — the sum of the offers in stock. Attributes are the properties of the smart filter.
  */
 final class Catalog
 {
@@ -248,6 +248,30 @@ final class Catalog
     }
 
     /**
+     * The product of the catalog for an element (an offer gives its parent) and whether it can be bought: active and
+     * available (in stock, or tracing and "buy at zero" let it be sold) — the same "available" as in the catalog; null —
+     * not a product of the trade catalog.
+     *
+     * @return array{0: int, 1: bool}|null
+     */
+    public static function availability(int $elementId): ?array
+    {
+        if ($elementId <= 0 || !self::isCatalogElement($elementId)) {
+            return null;
+        }
+
+        $productId = self::catalogIds($elementId)[0];
+        $element = \CIBlockElement::GetList([], ['ID' => $productId, 'CHECK_PERMISSIONS' => 'N'], false, false, ['ID', 'ACTIVE'])->Fetch();
+        $product = ProductTable::getRow(['select' => ['AVAILABLE'], 'filter' => ['=ID' => $productId]]);
+
+        if (!is_array($element) || $product === null) {
+            return null;
+        }
+
+        return [$productId, $element['ACTIVE'] === 'Y' && $product['AVAILABLE'] === ProductTable::STATUS_YES];
+    }
+
+    /**
      * Name, price and category of a product for product events.
      *
      * @return array{name: string, price: float, currency: string, category: string|null}|null
@@ -288,8 +312,9 @@ final class Catalog
     private static function item(string $siteId, array $fields, array $properties, array $categories, string $base): array
     {
         $id = (int) $fields['ID'];
-        [$price, $oldPrice, $currency] = self::prices($siteId, $id);
-        $product = ProductTable::getRow(['select' => ['AVAILABLE'], 'filter' => ['=ID' => $id]]);
+        $offers = self::offerIds($id);
+        [$price, $oldPrice, $currency] = self::prices($siteId, $id, $offers);
+        $product = ProductTable::getRow(['select' => ['AVAILABLE', 'TYPE', 'QUANTITY', 'QUANTITY_TRACE', 'CAN_BUY_ZERO'], 'filter' => ['=ID' => $id]]);
         $picture = (int) ($fields['DETAIL_PICTURE'] ?: $fields['PREVIEW_PICTURE']);
         $image = $picture > 0 ? (string) \CFile::GetPath($picture) : '';
         $url = (string) $fields['~DETAIL_PAGE_URL'];
@@ -307,24 +332,85 @@ final class Catalog
             $categories,
             $oldPrice,
             $brand,
-            $params
+            $params,
+            self::stock($product, $offers)
         );
+    }
+
+    /**
+     * Units in stock when the store keeps count: quantity tracing of the product is on and buying at zero is off (their
+     * own settings or the defaults of the catalog module — the fetch of QUANTITY_TRACE and CAN_BUY_ZERO resolves
+     * "default"). Zero stock of a product sold at zero does not mean "not available", so it goes without the stock. A
+     * product with offers — the sum of the offers in stock, when every active offer keeps count and none is sold at
+     * zero; null — not tracked or unknown.
+     *
+     * @param array<string, mixed>|null $product the row of b_catalog_product: TYPE, QUANTITY, QUANTITY_TRACE, CAN_BUY_ZERO
+     * @param list<int> $offers active offers of the product
+     */
+    public static function stock(?array $product, array $offers): ?int
+    {
+        if ($product === null || (int) $product['TYPE'] === ProductTable::TYPE_SERVICE) {
+            return null;
+        }
+
+        if ($offers === [] && (int) $product['TYPE'] !== ProductTable::TYPE_SKU) {
+            return self::keepsCount($product) ? max(0, (int) floor((float) $product['QUANTITY'])) : null;
+        }
+
+        $total = 0;
+        $rows = $offers !== [] ? ProductTable::getList(['select' => ['ID', 'QUANTITY', 'QUANTITY_TRACE', 'CAN_BUY_ZERO'], 'filter' => ['@ID' => $offers]])->fetchAll() : [];
+
+        // No offers yet, or an offer without its catalog row: the total is unknown.
+        if (count($rows) !== count($offers) || $rows === []) {
+            return null;
+        }
+
+        foreach ($rows as $row) {
+            // An offer without quantity tracing or sold at zero is always available: the total is unknown too.
+            if (!self::keepsCount($row)) {
+                return null;
+            }
+
+            $total += max(0, (int) floor((float) $row['QUANTITY']));
+        }
+
+        return $total;
+    }
+
+    /**
+     * Quantity tracing on and buying at zero off: zero stock means "not available".
+     *
+     * @param array<string, mixed> $row QUANTITY_TRACE and CAN_BUY_ZERO of b_catalog_product, "default" resolved
+     */
+    private static function keepsCount(array $row): bool
+    {
+        return ($row['QUANTITY_TRACE'] ?? 'N') === ProductTable::STATUS_YES && ($row['CAN_BUY_ZERO'] ?? 'N') !== ProductTable::STATUS_YES;
+    }
+
+    /**
+     * Active offers of a product; empty for a product without offers.
+     *
+     * @return list<int>
+     */
+    private static function offerIds(int $productId): array
+    {
+        $offers = \CCatalogSku::getOffersList([$productId], 0, ['ACTIVE' => 'Y'], ['ID']);
+
+        return is_array($offers) && isset($offers[$productId]) ? array_map('intval', array_keys($offers[$productId])) : [];
     }
 
     /**
      * The price a guest pays with discounts, the price before discounts if higher, and the currency; a product with
      * offers — the lowest offer price.
      *
+     * @param list<int>|null $offers active offers of the product, null — read them
+     *
      * @return array{0: float|null, 1: float|null, 2: string}
      */
-    private static function prices(string $siteId, int $productId): array
+    private static function prices(string $siteId, int $productId, ?array $offers = null): array
     {
-        $ids = [$productId];
-        $offers = \CCatalogSku::getOffersList([$productId], 0, ['ACTIVE' => 'Y'], ['ID']);
-
-        if (is_array($offers) && isset($offers[$productId]) && $offers[$productId] !== []) {
-            $ids = array_map('intval', array_keys($offers[$productId]));
-        }
+        $offers ??= self::offerIds($productId);
+        $ids = $offers !== [] ? $offers : [$productId];
 
         $best = null;
 

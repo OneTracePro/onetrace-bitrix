@@ -21,9 +21,10 @@ Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.
 | `order_completed` | the order is placed (any checkout, the admin, the API) | server |
 | `order_paid`, `order_refunded`, `order_cancelled` | the order becomes paid, a payment is returned, the order is cancelled | server, once per order event |
 | `add_to_cart`, `remove_from_cart`, `checkout_started` | cart changes and the checkout page (sale.order.ajax), for visitors with the tracker cookie or signed in | server |
+| `add_to_wishlist`, `remove_from_wishlist` | a cart line is deferred ("Delayed", the wishlist of Bitrix), moved back to the cart or deleted while deferred | server |
 | `product_viewed` | the product page: the view counter of the standard catalog.element templates | server, works with the composite cache |
 | Page views | the storefront | browser tracker |
-| Product catalog | product, price and stock changes, daily, and the "Upload the whole catalog" button | server, `products.write` |
+| Product catalog | product, price and stock changes (orders, cancellations, the admin, store documents), daily, and the "Upload the whole catalog" button | server, `products.write` |
 | `search` | the first page of the catalog search results, with "Product search" on | server |
 
 Every Bitrix order has a user (the guest checkout registers one), so orders, the cart and the account land in one profile; the browser of the checkout is saved with the order, so its later events (payment, refund) use it too.
@@ -36,9 +37,24 @@ Every Bitrix order has a user (the guest checkout registers one), so orders, the
 4. **Settings → Product settings → Module settings → OneTrace**: on the tab of each site enter the platform address (the domain you open OneTrace at) and both keys, click **Test connection**.
 5. Run agents on cron (`agents_use_crontab`), otherwise the queue waits for visitors' hits.
 
+Updating: unpack the new version over the folder and click **Save** in the settings once — this installs the new components of the version (`/bitrix/components/onetrace/`).
+
 ## Catalog
 
 The catalog is made of the products of the commercial catalog infoblocks bound to the site. Trade offers are not separate products: an offer uploads its parent, and a product with offers takes the lowest offer price. The price is what a guest pays with discounts; the old price — the price before discounts. Categories are the element sections with their parents; the brand — the property `BRAND`, `BRAND_REF` or `MANUFACTURER`; attributes — the properties of the smart filter.
+
+The stock (`stock`) goes with a product that keeps count — quantity tracing is on and buying at zero ("Allow purchase when out of stock") is off, in the product or, for "default", in the settings of the "Commercial catalog" module; a product with offers sends the sum of its active offers in stock when every offer keeps count and none is sold at zero. Products without tracing or sold at zero go without it: zero stock does not mean "not available" for them. A change of the quantity — an order, its cancellation, the admin, a store document — uploads the product again. The platform uses the stock only when "Use stock levels from the API and plugins" is on in its catalog settings: then zero takes the product off sale and the "low stock" journey trigger works.
+
+## Wishlist and "Notify me when available"
+
+- **Wishlist.** Bitrix has no wishlist of its own; the deferred products of the cart ("Delayed", the "Delay" button of `sale.basket.basket`) are one: deferring a line sends `remove_from_cart` and `add_to_wishlist`, moving it back to the cart — `remove_from_wishlist` and `add_to_cart`, deleting a deferred line — `remove_from_wishlist`. The events feed the price drop and back in stock journeys. A theme with its own "Favorites" can mark its buttons for the tracker (1.13.0 and newer) instead: `data-cdp-wishlist="{product id}"` on "add" and `data-cdp-wishlist-remove="{product id}"` on "remove".
+- **"Notify me when available".** Put the component in the template of the product page (`bitrix:catalog.element`, `template.php` of your template) next to the standard "Subscribe" button `bitrix:catalog.product.subscribe`:
+
+  ```php
+  $APPLICATION->IncludeComponent('onetrace:catalog.notify', '', ['PRODUCT_ID' => $arResult['ID']], $component, ['HIDE_ICONS' => 'Y']);
+  ```
+
+  For a product that cannot be bought it prints `<div data-cdp-notify="{product id}"></div>` (an offer gives its product), and the tracker draws the "Notify me when available" form of the project there (Site → Forms of the platform); the platform tells the customer when the product is back. The setting "Show the “Notify when available” form" turns it off per site. The standard subscribe button can then be removed: take its component out of the template or turn off the template parameter "Enable back-in-stock notifications" (`PRODUCT_SUBSCRIPTION`) of the catalog component. The component has no cache of its own: in a cached `catalog.element` it is cached with the product page, which Bitrix clears when the availability changes.
 
 ## Product search
 

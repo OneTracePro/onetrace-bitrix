@@ -71,6 +71,54 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
         return $id;
     }
 
+    /**
+     * Trade offers (SKU) of a product with their stock and quantity tracing.
+     *
+     * @param array<int, array{0: int, 1: string}> $offers [quantity, QUANTITY_TRACE] per offer
+     *
+     * @return list<int>
+     */
+    protected function offers(int $productId, array $offers, float $price = 20.0): array
+    {
+        $ids = [];
+        $iblockId = self::offersIblock();
+
+        foreach ($offers as $index => [$quantity, $trace]) {
+            $element = new \CIBlockElement();
+            $id = (int) $element->Add([
+                'IBLOCK_ID' => $iblockId, 'NAME' => 'Offer ' . ($index + 1), 'ACTIVE' => 'Y', 'PROPERTY_VALUES' => [\CIBlockPropertyTools::CODE_SKU_LINK => $productId],
+            ]);
+            self::assertGreaterThan(0, $id, (string) $element->LAST_ERROR);
+            Product::add(['ID' => $id, 'QUANTITY' => $quantity, 'QUANTITY_TRACE' => $trace, 'CAN_BUY_ZERO' => 'N', 'TYPE' => \Bitrix\Catalog\ProductTable::TYPE_OFFER]);
+            Price::add(['PRODUCT_ID' => $id, 'CATALOG_GROUP_ID' => (int) GroupTable::getRow(['select' => ['ID'], 'filter' => ['=BASE' => 'Y']])['ID'], 'PRICE' => $price + $index, 'CURRENCY' => 'RUB']);
+            $ids[] = $id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * The last product upload of the platform: the item of a product.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function uploaded(int $productId): ?array
+    {
+        $item = null;
+
+        foreach ($this->platform->requests as $request) {
+            if ($request['method'] === 'POST' && $request['path'] === '/api/v1/products') {
+                foreach ((array) ($request['body']['items'] ?? []) as $candidate) {
+                    if (($candidate['id'] ?? null) === (string) $productId) {
+                        $item = $candidate;
+                    }
+                }
+            }
+        }
+
+        return $item;
+    }
+
     protected function section(string $name, ?int $parentId = null): int
     {
         $section = new \CIBlockSection();
@@ -186,6 +234,32 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
         \CCatalog::Add(['IBLOCK_ID' => $id]);
 
         return self::$iblockId = $id;
+    }
+
+    /**
+     * The infoblock of trade offers of the test catalog (created once).
+     */
+    protected static function offersIblock(): int
+    {
+        static $id = 0;
+
+        if ($id > 0) {
+            return $id;
+        }
+
+        $existing = \CIBlock::GetList([], ['CODE' => 'onetrace_test_offers', 'CHECK_PERMISSIONS' => 'N'])->Fetch();
+
+        if (is_array($existing)) {
+            return $id = (int) $existing['ID'];
+        }
+
+        $id = (int) (new \CIBlock())->Add([
+            'IBLOCK_TYPE_ID' => 'onetrace_test', 'CODE' => 'onetrace_test_offers', 'NAME' => 'Offers', 'LID' => [self::SITE], 'ACTIVE' => 'Y', 'GROUP_ID' => ['2' => 'R'],
+        ]);
+        $link = (int) \CIBlockPropertyTools::createProperty($id, \CIBlockPropertyTools::CODE_SKU_LINK, ['LINK_IBLOCK_ID' => self::catalogIblock()]);
+        self::assertTrue((bool) \CCatalog::Add(['IBLOCK_ID' => $id, 'PRODUCT_IBLOCK_ID' => self::catalogIblock(), 'SKU_PROPERTY_ID' => $link]));
+
+        return $id;
     }
 
     protected static function personType(): int

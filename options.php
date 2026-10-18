@@ -30,7 +30,7 @@ $sites = Config::sites();
 $fields = [
     'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password',
     'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
-    'part_search' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
+    'part_notify' => 'checkbox', 'part_search' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
     'loyalty' => 'select', 'promo_pools' => 'textarea',
 ];
 /** Choices of the select fields: the bonus points are off, a payment of the order or a discount on its lines. */
@@ -88,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
             CAgent::AddAgent('\\Onetrace\\Connector\\Agent::promo();', $module, 'N', 300);
         }
 
+        // Components of this version (an upgrade from an older module: /bitrix/components gets them on install only).
+        CopyDirFiles(__DIR__ . '/install/components', \Bitrix\Main\Application::getDocumentRoot() . '/bitrix/components', true, true);
         Queue::resume();
         Connection::reset();
         $notes[] = ['ok' => true, 'text' => Loc::getMessage('ONETRACE_OPTIONS_SAVED')];

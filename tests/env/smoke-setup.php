@@ -1,7 +1,8 @@
 <?php
 
-// Storefront check (tests/env/smoke.sh): settings of the site s1, a product, a page with the recommendation widget.
-// Prints the product id. With "queue" — prints the waiting messages instead.
+// Storefront check (tests/env/smoke.sh): settings of the site s1, a product, a page with the recommendation widget,
+// a product out of stock with the "Notify me when available" component. Prints the ids of the product, the section and
+// the product out of stock. With "queue" — prints the waiting messages instead.
 $_SERVER['DOCUMENT_ROOT'] = '/var/www/html';
 define('NO_KEEP_STATISTIC', true);
 define('NOT_CHECK_PERMISSIONS', true);
@@ -57,4 +58,12 @@ file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/onetrace-search.php', '<?php req
     . '$APPLICATION->IncludeComponent("onetrace:catalog.search", "", ["IBLOCK_TYPE" => "onetrace_test", "IBLOCK_ID" => ' . (int) $iblock['ID'] . ', "PAGE_ELEMENT_COUNT" => 12, "PRICE_CODE" => ["BASE"]]); '
     . 'require $_SERVER["DOCUMENT_ROOT"] . "/bitrix/footer.php";');
 
-echo $id, ' ', $section;
+// A product out of stock and its page with the place of the "Notify me when available" form.
+$soldOut = (int) (new CIBlockElement())->Add(['IBLOCK_ID' => $iblock['ID'], 'NAME' => 'Smoke sold out', 'ACTIVE' => 'Y', 'CODE' => 'smoke-' . bin2hex(random_bytes(3))]);
+\Bitrix\Catalog\Model\Product::add(['ID' => $soldOut, 'QUANTITY' => 0, 'QUANTITY_TRACE' => 'Y', 'CAN_BUY_ZERO' => 'N']);
+\Onetrace\Connector\Queue::clear();
+file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/onetrace-notify.php', '<?php require $_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php"; '
+    . '$APPLICATION->IncludeComponent("onetrace:catalog.notify", "", ["PRODUCT_ID" => ' . $soldOut . ']); '
+    . 'require $_SERVER["DOCUMENT_ROOT"] . "/bitrix/footer.php";');
+
+echo $id, ' ', $section, ' ', $soldOut;

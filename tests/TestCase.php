@@ -16,6 +16,7 @@ use JsonSchema\Validator;
 use Onetrace\Connector\Config;
 use Onetrace\Connector\Connection;
 use Onetrace\Connector\Queue;
+use Onetrace\Connector\StoreEmails;
 use Onetrace\Connector\Tests\Support\RecordingTransport;
 
 abstract class TestCase extends \PHPUnit\Framework\TestCase
@@ -38,6 +39,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
 
         Queue::clear();
         Queue::resume();
+        StoreEmails::forget();
         $this->platform = new RecordingTransport();
         Connection::reset(['transport' => $this->platform]);
         $_COOKIE = [];

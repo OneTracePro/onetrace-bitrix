@@ -18,6 +18,7 @@ use Onetrace\Connector\Loyalty;
 use Onetrace\Connector\PromoSync;
 use Onetrace\Connector\Queue;
 use Onetrace\Connector\Status;
+use Onetrace\Connector\StoreEmails;
 
 $module = 'onetrace.connector';
 
@@ -100,6 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
         CopyDirFiles(__DIR__ . '/install/components', \Bitrix\Main\Application::getDocumentRoot() . '/bitrix/components', true, true);
         Queue::resume();
         Connection::reset();
+        // Store emails: the settings of the new key (or of the changed project) are read again.
+        StoreEmails::forget();
         $notes[] = ['ok' => true, 'text' => Loc::getMessage('ONETRACE_OPTIONS_SAVED')];
     } elseif (isset($_POST['check'], $sites[(string) $_POST['check']])) {
         $notes = Status::check((string) $_POST['check']);
@@ -162,6 +165,34 @@ $stats = Queue::stats();
                 </td>
             </tr>
         <?php } ?>
+        <tr class="heading"><td colspan="2"><?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS') ?></td></tr>
+        <?php $emails = Config::server($siteId) ? StoreEmails::settings($siteId) : null; ?>
+        <tr>
+            <td width="40%"><?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS_RELAY') ?></td>
+            <td width="60%">
+                <?php if (!Config::server($siteId)) { ?>
+                    <?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS_NOT_CONNECTED') ?>
+                <?php } elseif ($emails === null) { ?>
+                    <?= StoreEmails::settingsError($siteId) === 'permission' ? Loc::getMessage('ONETRACE_OPTIONS_EMAILS_NO_PERMISSION') : Loc::getMessage('ONETRACE_OPTIONS_EMAILS_UNAVAILABLE', ['#ERROR#' => htmlspecialcharsbx(StoreEmails::settingsError($siteId))]) ?>
+                <?php } else { ?>
+                    <?= Loc::getMessage($emails['relay'] ? 'ONETRACE_OPTIONS_EMAILS_ON' : 'ONETRACE_OPTIONS_EMAILS_OFF') ?>
+                <?php } ?>
+            </td>
+        </tr>
+        <?php if ($emails !== null) { ?>
+            <tr>
+                <td><?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS_TEMPLATES') ?></td>
+                <td>
+                    <?php foreach (\OneTrace\Resource\Emails::ORDER_KINDS as $emailKind) { ?>
+                        <?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS_KIND_' . strtoupper($emailKind)) ?>: <?= Loc::getMessage(!empty($emails['templates'][$emailKind]) ? 'ONETRACE_OPTIONS_EMAILS_TEMPLATE' : 'ONETRACE_OPTIONS_EMAILS_STORE') ?><br>
+                    <?php } ?>
+                </td>
+            </tr>
+        <?php } ?>
+        <tr>
+            <td></td>
+            <td><small><?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS_HINT') ?></small></td>
+        </tr>
         <tr>
             <td></td>
             <td><button type="submit" name="check" value="<?= $siteId ?>" class="adm-btn"><?= Loc::getMessage('ONETRACE_OPTIONS_CHECK') ?></button></td>

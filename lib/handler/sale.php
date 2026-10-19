@@ -8,8 +8,6 @@ use Bitrix\Main\Application;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Event;
 use Bitrix\Sale\BasketItem;
-use Bitrix\Sale\Delivery\Services\EmptyDeliveryService;
-use Bitrix\Sale\Delivery\Tracking\Manager as Tracking;
 use Bitrix\Sale\DeliveryStatus;
 use Bitrix\Sale\Order;
 use Bitrix\Sale\Payment;
@@ -21,6 +19,7 @@ use Onetrace\Connector\Config;
 use Onetrace\Connector\Connection;
 use Onetrace\Connector\Mapper;
 use Onetrace\Connector\Queue;
+use Onetrace\Connector\StoreEmails;
 
 /**
  * Orders and the cart from the server (module "sale"): placed, paid, shipped, delivered, cancelled and refunded orders
@@ -175,11 +174,8 @@ final class Sale
             }
 
             $siteId = (string) $order->getSiteId();
-            $deliveryId = (int) $shipment->getDeliveryId();
-            $tracking = trim((string) $shipment->getField('TRACKING_NUMBER'));
-            // "Без доставки" is not a carrier the customer knows.
-            $carrier = $deliveryId !== (int) EmptyDeliveryService::getEmptyDeliveryServiceId() ? trim((string) $shipment->getDeliveryName()) : '';
-            $url = $tracking !== '' && $deliveryId > 0 ? self::trackingUrl($deliveryId, $tracking) : '';
+            // "Без доставки" is not a carrier the customer knows; the link — from the tracking of the delivery service.
+            $tracking = StoreEmails::tracking($shipment);
             $deducted = $shipment->getField('DATE_DEDUCTED');
             $at = $shipment->isShipped() && $deducted instanceof \Bitrix\Main\Type\DateTime
                 ? (new \DateTimeImmutable('@' . $deducted->getTimestamp()))->setTimezone(new \DateTimeZone('UTC'))
@@ -195,23 +191,18 @@ final class Sale
                 }
             }
 
-            $message = Connection::messages($siteId)->orderShipped($model, $carrier ?: null, $tracking ?: null, $url ?: null, null, $at, (string) $shipment->getId(), $lines);
+            $message = Connection::messages($siteId)->orderShipped($model, $tracking['carrier'] ?? null, $tracking['tracking_number'] ?? null, $tracking['tracking_url'] ?? null, null, $at, (string) $shipment->getId(), $lines);
             $key = 'shipment' . $shipment->getId();
 
             $delay === null ? Queue::replace($siteId, $key, $message) : Queue::pending($siteId, $key, $message, $delay);
-        });
-    }
 
-    /**
-     * The tracking link of the delivery service (its tracking class, such as the Russian Post one); empty — none.
-     */
-    private static function trackingUrl(int $deliveryId, string $tracking): string
-    {
-        try {
-            return trim((string) Tracking::getInstance()->getTrackingUrl($deliveryId, $tracking));
-        } catch (\Throwable) {
-            return '';
-        }
+            // The OneTrace template of order_shipped: the email waits for the tracking number with the event; it is not
+            // sent when Bitrix sends its own email of the shipment (that one goes through the template).
+            if (StoreEmails::templated($siteId, 'order_shipped')) {
+                $job = ['kind' => 'order_shipped', 'order' => (int) $order->getId(), 'shipment' => (int) $shipment->getId(), 'key' => StoreEmails::key($siteId, 'order', (string) $order->getId(), 'shipped', (string) $shipment->getId())];
+                $delay === null ? Queue::replace($siteId, 'email-' . $key, $job, Queue::EMAIL) : Queue::email($siteId, 'email-' . $key, $job, $delay);
+            }
+        });
     }
 
     /**
@@ -231,6 +222,12 @@ final class Sale
 
             if ($model->customer->ids() !== []) {
                 Queue::event($siteId, Connection::messages($siteId)->orderDelivered($model, self::now()));
+            }
+
+            // The OneTrace template of order_delivered when the status sends no email of Bitrix (that one goes through
+            // the template itself).
+            if (StoreEmails::templated($siteId, 'order_delivered') && !StoreEmails::nativeStatus($siteId, (string) $order->getField('STATUS_ID'))) {
+                Queue::email($siteId, 'email-delivered' . $order->getId(), ['kind' => 'order_delivered', 'order' => (int) $order->getId(), 'key' => StoreEmails::key($siteId, 'order', (string) $order->getId(), 'delivered')]);
             }
         });
     }
@@ -254,6 +251,15 @@ final class Sale
 
                 if ($model->customer->ids() !== []) {
                     Queue::event((string) $order->getSiteId(), Connection::messages((string) $order->getSiteId())->orderRefunded($model, (float) $payment->getSum(), (string) $payment->getId(), self::now()));
+                }
+
+                // Bitrix has no refund email: the OneTrace template of order_refunded, once per payment.
+                if (StoreEmails::templated((string) $order->getSiteId(), 'order_refunded')) {
+                    $paymentKey = (int) $payment->getId() > 0 ? (string) $payment->getId() : 'o' . $order->getId();
+                    Queue::email((string) $order->getSiteId(), 'email-refund' . $paymentKey, [
+                        'kind' => 'order_refunded', 'order' => (int) $order->getId(), 'refund' => (float) $payment->getSum(),
+                        'key' => StoreEmails::key((string) $order->getSiteId(), 'order', (string) $order->getId(), 'refunded', $paymentKey),
+                    ]);
                 }
             }
         });

@@ -48,6 +48,10 @@ final class Status
                     $lines[] = ['ok' => false, 'text' => (string) Loc::getMessage('ONETRACE_STATUS_NO_LOYALTY')];
                 }
 
+                if ($type === 'secret' && !in_array('messages.send', (array) ($key['scopes'] ?? []), true)) {
+                    $lines[] = ['ok' => false, 'text' => (string) Loc::getMessage('ONETRACE_STATUS_NO_EMAILS')];
+                }
+
                 if ($type === 'secret' && PromoSync::pools($siteId) !== [] && !in_array('promo.read', (array) ($key['scopes'] ?? []), true)) {
                     $lines[] = ['ok' => false, 'text' => (string) Loc::getMessage('ONETRACE_STATUS_NO_PROMO')];
                 }

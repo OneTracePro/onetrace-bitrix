@@ -29,6 +29,8 @@ final class Events
         ['main', 'OnAfterUserLogin', Handler\User::class, 'onAfterLogin'],
         ['main', 'OnAfterUserLogout', Handler\User::class, 'onAfterLogout'],
         ['main', 'OnProlog', Handler\Page::class, 'onProlog'],
+        ['main', 'OnBeforeEventSend', Handler\Mail::class, 'onBeforeEventSend'],
+        ['main', 'OnBeforeMailSend', Handler\Mail::class, 'onBeforeMailSend'],
         ['iblock', 'OnAfterIBlockElementAdd', Handler\Catalog::class, 'onElementSaved'],
         ['iblock', 'OnAfterIBlockElementUpdate', Handler\Catalog::class, 'onElementSaved'],
         ['iblock', 'OnBeforeIBlockElementDelete', Handler\Catalog::class, 'onBeforeElementDelete'],

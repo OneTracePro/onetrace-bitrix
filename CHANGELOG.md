@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.6.0 — 2026-10-20
+
+- Store emails through OneTrace (the "Store emails" section of the platform, read with the secret key and the `messages.send` permission, cached for 5 minutes and cleared when the settings are saved): Bitrix mail events (`main:OnBeforeEventSend`) are built as Bitrix builds them and sent to `POST /api/v1/emails`, one request per recipient — as they are (subject, HTML or escaped text with links, text, sender name, Reply-To, attachments of allowed types) with "Send store emails through OneTrace" on, and order emails of the kinds with an enabled OneTrace template as the order data (number, order page, lines with pictures, links, articles and options, totals, address, tracking, cancellation reason, refund) in the language of the site. Copies to the shop addresses (CC, BCC, the sender address, the order email, "Copies of all emails") never go through OneTrace — they stay in the Bitrix email, so the platform makes no customer profiles of staff addresses.
+- The event types map to the kinds of the platform: orders (`order_placed`, `order_paid`, `order_shipped`, `order_delivered` by the "Delivered" statuses, `order_cancelled`, `order_note`, `invoice`), access (`password_reset`, `account_new`, `email_verification`, `login_code`), `other` for the rest of the shop modules; events of other modules are not touched.
+- Bitrix sends the staff copies and the recipients the platform did not accept itself (no key or permission, unavailable, 402, 422, 429, an attachment it does not take), every address once — an address in To leaves CC and BCC, the BCC of "Copies of all emails" too (`main:OnBeforeMailSend`), and a staff copy becomes To when no customer is left; with everything sent the mail event is marked as sent.
+- With their OneTrace templates on, the module sends the emails Bitrix has none for, once each, from the queue: `order_shipped` of a shipment without the tracking number or "delivery allowed" email of Bitrix, `order_delivered` of a status without a Bitrix email, `order_refunded` of a returned payment.
+- Settings: the "Store emails" block of each site (relay, templates of the order emails); the connection check warns about a missing `messages.send` permission.
+- onetrace-php 1.12.
+
 ## 1.5.0 — 2026-10-19
 
 - `order_shipped`: a shipment of the order (not the system one) handed over to delivery — deducted or in the shipment status "Shipped" (`DF`, or the status the "Online store" module sets on deduction) — once per shipment, with the delivery service name (none for "No delivery"), the tracking number, the tracking link of the delivery service's tracking (the Russian Post, delivery modules with a tracking class) and the products of the shipment; a second parcel is a new event. A shipment without a tracking number waits for one up to 12 hours in the queue: a number entered meanwhile goes with the event, a later one sends nothing again.

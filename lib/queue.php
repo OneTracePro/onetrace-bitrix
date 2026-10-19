@@ -14,7 +14,8 @@ use OneTrace\Exception\OneTraceException;
  * minute, so the store never waits for the platform and nothing is lost while it is unavailable.
  *
  * Kinds: "event" — a message for POST /batch; "product" — an element id to upload (read fresh when sent);
- * "delete" — a product id to remove from the catalog. Events with a key (a shipment) are one per key: a newer version
+ * "delete" — a product id to remove from the catalog; "email" — a store email the module sends from a OneTrace order
+ * template (StoreEmails::deliver(), one per request). Items with a key (a shipment) are one per key: a newer version
  * replaces the waiting one.
  */
 final class Queue
@@ -24,6 +25,8 @@ final class Queue
     public const PRODUCT = 'product';
 
     public const DELETE = 'delete';
+
+    public const EMAIL = 'email';
 
     /** Messages per request to the platform. */
     public const BATCH = 100;
@@ -55,19 +58,32 @@ final class Queue
     }
 
     /**
-     * Replaces the waiting message of a key and sends it with the next flush; false — none waits (it is sent).
+     * Replaces the waiting message (or email, $kind EMAIL) of a key and sends it with the next flush; false — none
+     * waits (it is sent).
      *
      * @param array<string, mixed>|null $message
      */
-    public static function replace(string $siteId, string $key, ?array $message): bool
+    public static function replace(string $siteId, string $key, ?array $message, string $kind = self::EVENT): bool
     {
         if ($message === null || !Config::server($siteId) || QueueTable::getCount(['=SITE_ID' => $siteId, '=ITEM_KEY' => $key, '=ATTEMPTS' => 0]) === 0) {
             return false;
         }
 
-        self::push($siteId, self::EVENT, $key, self::encode($message), true);
+        self::push($siteId, $kind, $key, self::encode($message), true);
 
         return true;
+    }
+
+    /**
+     * A store email of the module (see StoreEmails::deliver()): one per key and site, sent after $delay seconds.
+     *
+     * @param array<string, mixed> $job kind, order, shipment, refund, key (the idempotency key)
+     */
+    public static function email(string $siteId, string $key, array $job, int $delay = 0): void
+    {
+        if (Config::server($siteId)) {
+            self::push($siteId, self::EMAIL, $key, self::encode($job), true, $delay);
+        }
     }
 
     /**
@@ -98,9 +114,9 @@ final class Queue
         $sites = array_column(QueueTable::getList(['select' => ['SITE_ID'], 'group' => ['SITE_ID']])->fetchAll(), 'SITE_ID');
 
         foreach (array_map('strval', $sites) as $siteId) {
-            foreach ([self::EVENT, self::PRODUCT, self::DELETE] as $kind) {
+            foreach ([self::EVENT, self::PRODUCT, self::DELETE, self::EMAIL] as $kind) {
                 while ($limit > 0 && !self::paused($siteId) && Config::server($siteId)
-                    && ($rows = self::due($siteId, $kind, min($limit, $kind === self::PRODUCT ? self::PRODUCT_BATCH : self::BATCH))) !== []) {
+                    && ($rows = self::due($siteId, $kind, min($limit, ['product' => self::PRODUCT_BATCH, 'email' => 1][$kind] ?? self::BATCH))) !== []) {
                     $limit -= count($rows);
 
                     foreach (self::send($siteId, $kind, $rows) as $key => $count) {
@@ -224,10 +240,20 @@ final class Queue
                 if ($missing !== []) {
                     $client->products()->delete($missing);
                 }
+            } elseif ($kind === self::EMAIL) {
+                StoreEmails::deliver($siteId, (array) json_decode($rows[0]['PAYLOAD'], true));
             } else {
                 $client->products()->delete(array_values(array_map('strval', array_column($rows, 'PAYLOAD'))));
             }
         } catch (\Throwable $error) {
+            // A key without the permission of store emails must not stop the events: the email is dropped.
+            if ($kind === self::EMAIL && ($error instanceof \OneTrace\Exception\PermissionException || $error instanceof \OneTrace\Exception\AuthenticationException)) {
+                self::remove(array_column($rows, 'ID'));
+                self::log('dropped store email ' . mb_substr($rows[0]['PAYLOAD'], 0, 200) . ': ' . $error->getMessage());
+
+                return ['sent' => 0, 'retried' => 0, 'dropped' => count($rows)];
+            }
+
             return self::failed($siteId, $kind, $rows, $error);
         }
 

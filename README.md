@@ -3,7 +3,7 @@
 [![CI](https://github.com/OneTracePro/onetrace-bitrix/actions/workflows/ci.yml/badge.svg)](https://github.com/OneTracePro/onetrace-bitrix/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.pro), the customer data platform: orders, customers and newsletter consents from the server, the website tracker, product views, the product catalog, recommendation widgets and Web Push. Abandoned cart, browse abandonment, post-purchase and win-back journeys, product recommendations and predictions work right after you connect the store.
+Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.pro), the customer data platform: orders, customers and newsletter consents from the server, the website tracker, product views, the product catalog, recommendation widgets, Web Push and the store emails. Abandoned cart, browse abandonment, post-purchase and win-back journeys, product recommendations and predictions work right after you connect the store.
 
 [Русская версия](README.ru.md)
 
@@ -35,7 +35,7 @@ Every Bitrix order has a user (the guest checkout registers one), so orders, the
 
 1. Download `onetrace.connector.zip` from the [latest release](https://github.com/OneTracePro/onetrace-bitrix/releases) and unpack it into `/local/modules/` (the folder `onetrace.connector`).
 2. **Marketplace → Installed solutions**: install "OneTrace — customer data platform".
-3. In your OneTrace project, open **API keys** and create a write key (for the storefront) and a secret key with the `products.write` permission (for the server).
+3. In your OneTrace project, open **API keys** and create a write key (for the storefront) and a secret key with the `products.write` permission (for the server); add "Send messages manually" (`messages.send`) for the store emails.
 4. **Settings → Product settings → Module settings → OneTrace**: on the tab of each site enter the platform address (the domain you open OneTrace at) and both keys, click **Test connection**.
 5. Run agents on cron (`agents_use_crontab`), otherwise the queue waits for visitors' hits.
 
@@ -48,6 +48,35 @@ The online chat of the platform answers "where is my order" from these events, s
 - **`order_shipped`** — for every shipment of the order except the system one, when it is deducted ("Shipped" in the order) or gets the shipment status "Shipped" (`DF`, or the status the "Online store" module sets on deduction). The event has the name of the delivery service as the customer sees it (none for "No delivery"), the tracking number, the tracking link when the delivery service has tracking (the Russian Post and delivery modules with a tracking class) and the products of the shipment. A second parcel of the order is a separate event; saving the shipment again or changing its tracking number gives none.
 - A shipment handed over **without a tracking number** waits for it up to 12 hours in the queue: a number entered meanwhile (by hand or by the delivery module) goes with the event; after that the event goes without it, and a later number does not send it again.
 - **`order_delivered`** — the order comes to one of the statuses of the setting **Order statuses “Delivered”** of the site (several with Ctrl; "Completed", `F`, by default; none — the event is not sent). Moving between these statuses gives no second event.
+
+## Store emails
+
+The emails of the store — orders, registration, password recovery, emails of the store modules — can go through the email integration of the OneTrace project: delivery statuses, history in the customer profile, your domain and its reputation. It is set up in OneTrace, section **Store emails** ("Send store emails through OneTrace" and the OneTrace templates of the order emails); the module reads these settings with the secret key (the "Send messages manually" permission) every 5 minutes and when the module settings are saved, and shows them read-only on the tab of each site.
+
+- **Where:** `main:OnBeforeEventSend`, for every email template of a Bitrix mail event before Bitrix builds and sends it. The module builds the email the way Bitrix does (subject, body, From, Reply-To, CC, BCC, attachments of the template and of the event) and sends it to the platform, one request per recipient (5-second timeout, no retries, an idempotency key per event, template and recipient).
+- **As is:** the subject, HTML (a text email becomes escaped HTML with clickable links; relative links of an HTML email become absolute), the text, the sender name, Reply-To, the language of the site and the attachments (PDF, PNG, JPEG, GIF, plain text, CSV, calendar; up to 5 files and 5 MB — anything else keeps the email with Bitrix).
+- **Order templates:** an order email of a kind with an enabled OneTrace template goes to the customer as the order data — the number, the order page (the guest link when allowed, otherwise `/personal/order/detail/<number>/`), the lines with the picture, link, article and options, the totals, payment and delivery, the address of the order properties, the tracking of the shipment, the cancellation reason, the refund — and OneTrace builds the email in the language of the site.
+- **Staff copies:** copies to the shop addresses (CC, BCC, the sender address of the site or of the main module, the order email of the "Online store", "Copies of all emails") never go through OneTrace, even with the relay on — the platform would make customer profiles of the staff addresses; they stay in the Bitrix email.
+- **Fallback:** recipients the platform accepted leave the email; Bitrix sends the rest (and the staff copies) itself — no secret key or permission, the platform unavailable, the message quota (402), invalid data (422), too many emails to the recipient (429), an attachment it does not take. The rest has every address once: an address in To leaves CC and BCC (the BCC Bitrix adds for "Copies of all emails" too, through `main:OnBeforeMailSend`); with the customers gone, a staff copy becomes To. With everything sent the mail event is marked as sent.
+
+| Bitrix mail event | Kind |
+|---|---|
+| `SALE_NEW_ORDER`, `SALE_NEW_ORDER_RECURRING` | `order_placed` |
+| `SALE_ORDER_PAID` | `order_paid` |
+| `SALE_ORDER_DELIVERY` ("delivery allowed"), `SALE_ORDER_TRACKING_NUMBER` | `order_shipped` (the shipment of the event) |
+| `SALE_STATUS_CHANGED_<status>` | `order_delivered` for the statuses "Order statuses “Delivered”", otherwise `order_note` |
+| `SALE_ORDER_CANCEL` | `order_cancelled` |
+| `SALE_ORDER_REMIND_PAYMENT`, `SALE_ORDER_ALLOW_PAY`, `SALE_ORDER_SHIPMENT_STATUS_CHANGED` | `order_note` |
+| `SALE_CHECK_PRINT` | `invoice` |
+| `USER_PASS_REQUEST` | `password_reset` |
+| `USER_INFO`, `USER_INVITE`, `NEW_USER` | `account_new` |
+| `NEW_USER_CONFIRM`, `SUBSCRIBE_CONFIRM`, `SENDER_SUBSCRIBE_CONFIRM` | `email_verification` |
+| `USER_CODE_REQUEST`, `CATALOG_PRODUCT_SUBSCRIBE_LIST_CONFIRM` | `login_code` |
+| `USER_PASS_CHANGED`, `NEW_DEVICE_LOGIN`, other `SALE_*` and `CATALOG_*` | `other` |
+| A copy to a shop address: CC, BCC, the sender address of the site or of the main module, the order email of the "Online store", "Copies of all emails" | never through OneTrace: Bitrix sends it (the platform would make customer profiles of the staff addresses) |
+| Events of other modules (forum, blog, event log, feedback form …) | not touched |
+
+Bitrix has no email for some order events; with their OneTrace template on, **the module sends them itself** from the queue (retries as for events), once each: `order_shipped` of a shipment handed over to delivery (after the tracking number or the 12-hour wait, as the event) when Bitrix did not send its own tracking number or "delivery allowed" email for it; `order_delivered` when the delivered status sends no Bitrix email (its "Notify" flag is off or the template is inactive); `order_refunded` for a returned payment.
 
 ## Catalog
 

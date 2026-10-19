@@ -14,7 +14,8 @@ use OneTrace\Exception\OneTraceException;
  * minute, so the store never waits for the platform and nothing is lost while it is unavailable.
  *
  * Kinds: "event" — a message for POST /batch; "product" — an element id to upload (read fresh when sent);
- * "delete" — a product id to remove from the catalog.
+ * "delete" — a product id to remove from the catalog. Events with a key (a shipment) are one per key: a newer version
+ * replaces the waiting one.
  */
 final class Queue
 {
@@ -36,8 +37,37 @@ final class Queue
     public static function event(string $siteId, ?array $message): void
     {
         if ($message !== null && Config::server($siteId)) {
-            self::push($siteId, self::EVENT, '', (string) json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION));
+            self::push($siteId, self::EVENT, '', self::encode($message));
         }
+    }
+
+    /**
+     * A message that may still change while it waits: one per key and site, a newer one replaces the waiting one.
+     * $delay keeps it in the queue that long (a shipment without a tracking number waits for one).
+     *
+     * @param array<string, mixed>|null $message
+     */
+    public static function pending(string $siteId, string $key, ?array $message, int $delay = 0): void
+    {
+        if ($message !== null && Config::server($siteId)) {
+            self::push($siteId, self::EVENT, $key, self::encode($message), true, $delay);
+        }
+    }
+
+    /**
+     * Replaces the waiting message of a key and sends it with the next flush; false — none waits (it is sent).
+     *
+     * @param array<string, mixed>|null $message
+     */
+    public static function replace(string $siteId, string $key, ?array $message): bool
+    {
+        if ($message === null || !Config::server($siteId) || QueueTable::getCount(['=SITE_ID' => $siteId, '=ITEM_KEY' => $key, '=ATTEMPTS' => 0]) === 0) {
+            return false;
+        }
+
+        self::push($siteId, self::EVENT, $key, self::encode($message), true);
+
+        return true;
     }
 
     /**
@@ -127,10 +157,18 @@ final class Queue
         Application::getConnection()->truncateTable(QueueTable::getTableName());
     }
 
-    private static function push(string $siteId, string $kind, string $key, string $payload, bool $unique = false): void
+    /**
+     * @param array<string, mixed> $message
+     */
+    private static function encode(array $message): string
+    {
+        return (string) json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
+    }
+
+    private static function push(string $siteId, string $kind, string $key, string $payload, bool $unique = false, int $delay = 0): void
     {
         if ($unique) {
-            // A newer change of the same product replaces the waiting one (upload ⇄ delete).
+            // A newer change of the same item replaces the waiting one (upload ⇄ delete, a shipment with its tracking number).
             $rows = QueueTable::getList(['select' => ['ID'], 'filter' => ['=SITE_ID' => $siteId, '=ITEM_KEY' => $key, '=ATTEMPTS' => 0]]);
 
             while ($row = $rows->fetch()) {
@@ -140,7 +178,7 @@ final class Queue
 
         QueueTable::add([
             'SITE_ID' => $siteId, 'KIND' => $kind, 'ITEM_KEY' => $key, 'PAYLOAD' => $payload, 'ATTEMPTS' => 0,
-            'AVAILABLE_AT' => new DateTime(), 'CREATED_AT' => new DateTime(),
+            'AVAILABLE_AT' => $delay > 0 ? (new DateTime())->add('+' . $delay . ' seconds') : new DateTime(), 'CREATED_AT' => new DateTime(),
         ]);
     }
 

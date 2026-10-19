@@ -17,6 +17,7 @@ final class Events
         ['sale', 'OnSaleOrderSaved', Handler\Sale::class, 'onOrderSaved'],
         ['sale', 'OnSaleOrderPaid', Handler\Sale::class, 'onOrderPaid'],
         ['sale', 'OnSaleOrderCanceled', Handler\Sale::class, 'onOrderCanceled'],
+        ['sale', 'OnSaleShipmentEntitySaved', Handler\Sale::class, 'onShipmentSaved'],
         ['sale', 'OnSaleBasketItemSaved', Handler\Sale::class, 'onBasketItemSaved'],
         ['sale', 'OnSaleBasketItemEntityDeleted', Handler\Sale::class, 'onBasketItemDeleted'],
         ['sale', 'OnSaleComponentOrderUserResult', Handler\Sale::class, 'onCheckout'],

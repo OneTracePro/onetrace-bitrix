@@ -20,6 +20,8 @@ Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.
 | Newsletter consent | subscribing and unsubscribing in the module "Email marketing"; a Yes/No order property of the checkout | server, with `identify` |
 | `order_completed` | the order is placed (any checkout, the admin, the API) | server |
 | `order_paid`, `order_refunded`, `order_cancelled` | the order becomes paid, a payment is returned, the order is cancelled | server, once per order event |
+| `order_shipped` — delivery service, tracking number, tracking link, products of the parcel | a shipment is handed over to delivery: deducted ("Shipped") or in the status "Shipped" | server, once per shipment (a second parcel is a new event) |
+| `order_delivered` | the order comes to a delivered status ("Completed" by default, the setting "Order statuses “Delivered”") | server, once per order |
 | `add_to_cart`, `remove_from_cart`, `checkout_started` | cart changes and the checkout page (sale.order.ajax), for visitors with the tracker cookie or signed in | server |
 | `add_to_wishlist`, `remove_from_wishlist` | a cart line is deferred ("Delayed", the wishlist of Bitrix), moved back to the cart or deleted while deferred | server |
 | `product_viewed` | the product page: the view counter of the standard catalog.element templates | server, works with the composite cache |
@@ -37,7 +39,15 @@ Every Bitrix order has a user (the guest checkout registers one), so orders, the
 4. **Settings → Product settings → Module settings → OneTrace**: on the tab of each site enter the platform address (the domain you open OneTrace at) and both keys, click **Test connection**.
 5. Run agents on cron (`agents_use_crontab`), otherwise the queue waits for visitors' hits.
 
-Updating: unpack the new version over the folder and click **Save** in the settings once — this installs the new components of the version (`/bitrix/components/onetrace/`).
+Updating: unpack the new version over the folder and click **Save** in the settings once — this installs the new components and event handlers of the version (`/bitrix/components/onetrace/`).
+
+## Shipments and delivery
+
+The online chat of the platform answers "where is my order" from these events, so the tracking number matters most.
+
+- **`order_shipped`** — for every shipment of the order except the system one, when it is deducted ("Shipped" in the order) or gets the shipment status "Shipped" (`DF`, or the status the "Online store" module sets on deduction). The event has the name of the delivery service as the customer sees it (none for "No delivery"), the tracking number, the tracking link when the delivery service has tracking (the Russian Post and delivery modules with a tracking class) and the products of the shipment. A second parcel of the order is a separate event; saving the shipment again or changing its tracking number gives none.
+- A shipment handed over **without a tracking number** waits for it up to 12 hours in the queue: a number entered meanwhile (by hand or by the delivery module) goes with the event; after that the event goes without it, and a later number does not send it again.
+- **`order_delivered`** — the order comes to one of the statuses of the setting **Order statuses “Delivered”** of the site (several with Ctrl; "Completed", `F`, by default; none — the event is not sent). Moving between these statuses gives no second event.
 
 ## Catalog
 

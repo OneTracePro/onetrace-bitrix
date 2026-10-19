@@ -76,6 +76,16 @@ final class Config
         return preg_match('/^[A-Za-z0-9_]{1,50}$/', $code) === 1 ? $code : '';
     }
 
+    /**
+     * Order statuses that mean the customer received the order (order_delivered): "Выполнен" (F) by default.
+     *
+     * @return list<string>
+     */
+    public static function deliveredStatuses(?string $siteId = null): array
+    {
+        return array_values(array_filter(explode(',', self::get('delivered_statuses', $siteId, 'F')), static fn (string $status): bool => preg_match('/^[A-Za-z0-9]{1,2}$/', $status) === 1));
+    }
+
     public static function widget(string $place, ?string $siteId = null): string
     {
         $uid = self::get('widget_' . $place, $siteId);

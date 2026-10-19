@@ -2,6 +2,13 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.5.0 — 2026-10-19
+
+- `order_shipped`: a shipment of the order (not the system one) handed over to delivery — deducted or in the shipment status "Shipped" (`DF`, or the status the "Online store" module sets on deduction) — once per shipment, with the delivery service name (none for "No delivery"), the tracking number, the tracking link of the delivery service's tracking (the Russian Post, delivery modules with a tracking class) and the products of the shipment; a second parcel is a new event. A shipment without a tracking number waits for one up to 12 hours in the queue: a number entered meanwhile goes with the event, a later one sends nothing again.
+- `order_delivered`: the order comes to a status of the new setting "Order statuses “Delivered”" (multiple choice per site, "Completed" `F` by default), once per order.
+- Saving the settings registers the event handlers of the new version after an update.
+- onetrace-php 1.11.
+
 ## 1.4.0 — 2026-10-18
 
 - Stock: catalog items carry `stock` when the product keeps count — quantity tracing on and buying at zero off (the product's settings or the defaults of the "Commercial catalog" module); a product with offers — the sum of its active offers in stock when every offer keeps count and none is sold at zero. Products without tracing or sold at zero go without it. Orders, cancellations, the admin and store documents change the quantity through the catalog model, so the product is uploaded again as before. The platform uses the stock only with "Use stock levels from the API and plugins" on.

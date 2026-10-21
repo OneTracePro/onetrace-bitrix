@@ -93,6 +93,7 @@ class onetrace_connector extends CModule
     public function UnInstallEvents(): bool
     {
         \Onetrace\Connector\Events::unregister();
+        \Onetrace\Connector\StoreMcp::uninstallMailEvents();
 
         return true;
     }

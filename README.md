@@ -141,6 +141,14 @@ Every 5 minutes (agent) new and changed unique codes of the pool become one-orde
 
 **Referrals** (with bonus points on): a new user with the tracker's `cdp_ref` cookie of a `?ref=` link — the friend's code goes to the platform, and the friend gets the welcome reward; the member gets points for the friend's first order. The component `onetrace:loyalty.account` shows the referral link and the active promo codes of the customer.
 
+## AI chat bot: store MCP
+
+The AI bot of the OneTrace chat can answer customers with live data of the store and, if you allow it, act on orders. Turn on **Connect to the chat bot** in the "AI chat bot: store MCP" block of the site in the module settings and save: the module connects its MCP server (`/bitrix/services/onetrace.connector/mcp.php?site=s1`, store MCP contract v1, HTTPS) to the bot of the project. Sites of one project share one connection. The secret key needs the `chats.manage` permission.
+
+- **Reading** (on by default): orders of the customer (the account and the other accounts with its email — a checkout without login makes one), an order with lines, payment, delivery service, address and the tracking number with its link, stock and prices of the catalog with offers, active delivery services (the price and the period of configurable ones), the return policy text and page of the settings.
+- **Actions** (off by default, allow them in "What the bot may do"): cancel an order with nothing paid and nothing shipped (as the personal section allows), pass a return or delivery change request to the shop — the manager comment of the order and the mail event `ONETRACE_STORE_MCP_REQUEST` to the order email of the shop. The bot acts only after the customer agreed in the chat.
+- **Customers**: signed-in customers are confirmed automatically — the login sets the `onetrace_chat` cookie, and the tracker script gets the signed token from `chat-customer.php` (the token never goes into a page of the composite cache); guests and messenger customers get a 6-digit code by the mail event `ONETRACE_STORE_MCP_CODE` (a handler of `onetrace.connector:onStoreMcpSendCode` returning a success result sends it itself, e.g. by SMS). Orders of other customers are "not found".
+
 ## Recommendations and Web Push
 
 - Widgets from **Site → Widgets** of the platform: place the component **OneTrace recommendations** (`onetrace:recommendations`) in the product page, the cart or any page and set the widget id; pass the product ids of the page (`ITEMS`) and the section (`CATEGORY`) where the widget type needs them.

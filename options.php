@@ -19,6 +19,7 @@ use Onetrace\Connector\PromoSync;
 use Onetrace\Connector\Queue;
 use Onetrace\Connector\Status;
 use Onetrace\Connector\StoreEmails;
+use Onetrace\Connector\StoreMcp;
 
 $module = 'onetrace.connector';
 
@@ -64,6 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
             }
         }
 
+        // Store MCP for the AI chat bot: the switch, the tools the bot may use and the return policy of each site.
+        foreach (array_keys($sites) as $siteId) {
+            $mcp = (array) ($_POST['site'][$siteId] ?? []);
+            Config::set('store_mcp', ($mcp['store_mcp'] ?? '') === 'Y' ? 'Y' : 'N', $siteId);
+            Config::set('store_mcp_tools', implode(',', array_intersect(array_merge(StoreMcp::READ_TOOLS, StoreMcp::ACTIONS), array_map('strval', (array) ($mcp['store_mcp_tools'] ?? [])))), $siteId);
+            Config::set('store_mcp_return_text', trim((string) ($mcp['store_mcp_return_text'] ?? '')), $siteId);
+            Config::set('store_mcp_return_url', trim((string) ($mcp['store_mcp_return_url'] ?? '')), $siteId);
+        }
+
         // Event handlers of this version (an upgrade from an older module): registering is idempotent.
         Events::register();
 
@@ -99,8 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
 
         // Components of this version (an upgrade from an older module: /bitrix/components gets them on install only).
         CopyDirFiles(__DIR__ . '/install/components', \Bitrix\Main\Application::getDocumentRoot() . '/bitrix/components', true, true);
+        CopyDirFiles(__DIR__ . '/install/services', \Bitrix\Main\Application::getDocumentRoot() . '/bitrix/services/' . $module, true, true);
         Queue::resume();
         Connection::reset();
+        // The store MCP server connected to the bot of each project (or disconnected).
+        StoreMcp::connect();
         // Store emails: the settings of the new key (or of the changed project) are read again.
         StoreEmails::forget();
         $notes[] = ['ok' => true, 'text' => Loc::getMessage('ONETRACE_OPTIONS_SAVED')];
@@ -192,6 +205,45 @@ $stats = Queue::stats();
         <tr>
             <td></td>
             <td><small><?= Loc::getMessage('ONETRACE_OPTIONS_EMAILS_HINT') ?></small></td>
+        </tr>
+        <tr class="heading"><td colspan="2"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_HEADING') ?></td></tr>
+        <?php $mcpTools = Config::get('store_mcp_tools', $siteId, implode(',', StoreMcp::READ_TOOLS)); ?>
+        <tr>
+            <td width="40%"><label for="<?= $siteId ?>_store_mcp"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP') ?></label></td>
+            <td width="60%">
+                <input type="checkbox" id="<?= $siteId ?>_store_mcp" name="site[<?= $siteId ?>][store_mcp]" value="Y"<?= Config::get('store_mcp', $siteId, 'N') === 'Y' ? ' checked' : '' ?>>
+                <br><small><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_HINT') ?></small>
+            </td>
+        </tr>
+        <tr>
+            <td class="adm-detail-valign-top"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_TOOLS') ?></td>
+            <td>
+                <?php foreach (array_merge(StoreMcp::READ_TOOLS, StoreMcp::ACTIONS) as $tool) { ?>
+                    <label><input type="checkbox" name="site[<?= $siteId ?>][store_mcp_tools][]" value="<?= $tool ?>"<?= in_array($tool, explode(',', $mcpTools), true) ? ' checked' : '' ?>> <?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_TOOL_' . strtoupper($tool)) ?></label><br>
+                <?php } ?>
+                <small><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_TOOLS_HINT') ?></small>
+            </td>
+        </tr>
+        <tr>
+            <td class="adm-detail-valign-top"><label for="<?= $siteId ?>_store_mcp_return_text"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_RETURN_TEXT') ?></label></td>
+            <td><textarea id="<?= $siteId ?>_store_mcp_return_text" name="site[<?= $siteId ?>][store_mcp_return_text]" rows="4" cols="60"><?= htmlspecialcharsbx(Config::get('store_mcp_return_text', $siteId)) ?></textarea></td>
+        </tr>
+        <tr>
+            <td><label for="<?= $siteId ?>_store_mcp_return_url"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_RETURN_URL') ?></label></td>
+            <td><input type="text" id="<?= $siteId ?>_store_mcp_return_url" name="site[<?= $siteId ?>][store_mcp_return_url]" value="<?= htmlspecialcharsbx(Config::get('store_mcp_return_url', $siteId)) ?>" size="60" placeholder="/about/returns/"></td>
+        </tr>
+        <?php $mcpStatus = StoreMcp::status($siteId); ?>
+        <tr>
+            <td><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_STATE') ?></td>
+            <td>
+                <?php if ($mcpStatus === null) { ?>
+                    <?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_OFF') ?>
+                <?php } elseif ($mcpStatus['status'] !== 'ok') { ?>
+                    <?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_ERROR', ['#ERROR#' => htmlspecialcharsbx($mcpStatus['error'] !== '' ? $mcpStatus['error'] : $mcpStatus['status'])]) ?>
+                <?php } else { ?>
+                    <?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_OK', ['#URL#' => htmlspecialcharsbx($mcpStatus['url']), '#TOOLS#' => htmlspecialcharsbx(implode(', ', $mcpStatus['tools']))]) ?>
+                <?php } ?>
+            </td>
         </tr>
         <tr>
             <td></td>

@@ -13,6 +13,8 @@ require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.
 CCatalogGroup::Update(1, ['USER_GROUP' => [1, 2], 'USER_GROUP_BUY' => [1, 2]]);
 
 if (\Bitrix\Main\ModuleManager::isModuleInstalled('onetrace.connector')) {
+    // Components and services of the working copy, as saving the settings copies them after an update.
+    CModule::CreateModuleObject('onetrace.connector')->InstallFiles();
     echo "The module is installed.\n";
 
     return;

@@ -1,8 +1,8 @@
 <?php
 
 // Storefront check (tests/env/smoke.sh): settings of the site s1, a product, a page with the recommendation widget,
-// a product out of stock with the "Notify me when available" component. Prints the ids of the product, the section and
-// the product out of stock. With "queue" — prints the waiting messages instead.
+// a product out of stock with the "Notify me when available" component, the store MCP server. Prints the ids of the
+// product, the section and the product out of stock, and the key of the store MCP server. With "queue" — prints the waiting messages instead.
 $_SERVER['DOCUMENT_ROOT'] = '/var/www/html';
 define('NO_KEEP_STATISTIC', true);
 define('NOT_CHECK_PERMISSIONS', true);
@@ -33,7 +33,7 @@ if (($argv[1] ?? '') === 'queue') {
     return;
 }
 
-foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y'] as $name => $value) {
+foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y', 'store_mcp' => 'Y'] as $name => $value) {
     Config::set($name, $value, 's1');
 }
 
@@ -66,4 +66,4 @@ file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/onetrace-notify.php', '<?php req
     . '$APPLICATION->IncludeComponent("onetrace:catalog.notify", "", ["PRODUCT_ID" => ' . $soldOut . ']); '
     . 'require $_SERVER["DOCUMENT_ROOT"] . "/bitrix/footer.php";');
 
-echo $id, ' ', $section, ' ', $soldOut;
+echo $id, ' ', $section, ' ', $soldOut, ' ', \Onetrace\Connector\StoreMcp::key();

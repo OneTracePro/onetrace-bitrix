@@ -20,7 +20,7 @@ use Onetrace\Connector\Queue;
 final class Page
 {
     /** Methods the stub queues until cdp.js loads: the same list as in the platform's install code. */
-    private const STUB_METHODS = ['init', 'page', 'track', 'identify', 'alias', 'reset', 'setLanguage', 'widgets', 'renderRecommendations', 'searchBoxes'];
+    private const STUB_METHODS = ['init', 'page', 'track', 'identify', 'alias', 'reset', 'setLanguage', 'widgets', 'renderRecommendations', 'searchBoxes', 'chatCustomer'];
 
     /** The view counter request of catalog.element (its templates post it after the product page loads). */
     private const VIEW_COUNTER = '/bitrix/components/bitrix/catalog.element/ajax.php';
@@ -67,8 +67,26 @@ final class Page
 
         Asset::getInstance()->addString($script, false, AssetLocation::AFTER_JS_KERNEL);
 
+        // The signed-in customer for the AI chat bot (store MCP): the token comes from a service, not with the page.
+        if (\Onetrace\Connector\StoreMcp::enabled($siteId)) {
+            Asset::getInstance()->addString(\Onetrace\Connector\StoreMcp::trackerScript($siteId), false, AssetLocation::AFTER_JS_KERNEL);
+            self::rememberLogin($siteId);
+        }
+
         if (\Onetrace\Connector\Search\Search::enabled($siteId)) {
             Asset::getInstance()->addString(self::searchBoxes(), false, AssetLocation::AFTER_JS_KERNEL);
+        }
+    }
+
+    /**
+     * A session restored from "remember me" has no login event: the cookie of the signed-in customer is set here.
+     */
+    private static function rememberLogin(string $siteId): void
+    {
+        global $USER;
+
+        if ($USER instanceof \CUser && $USER->IsAuthorized()) {
+            \Onetrace\Connector\StoreMcp::rememberLogin($siteId);
         }
     }
 

@@ -11,7 +11,8 @@ use Onetrace\Connector\Queue;
 
 /**
  * Customers (module "main"): identify on registration, profile changes and login — the login links the visitor's
- * browser (tracker cookie) to the account. Logout forgets the browser visitor, so the next one gets a new id.
+ * browser (tracker cookie) to the account and marks the browser for the chat token of the store MCP. Logout forgets
+ * the browser visitor, so the next one gets a new id.
  */
 final class User
 {
@@ -43,6 +44,10 @@ final class User
     {
         if ((int) ($fields['USER_ID'] ?? 0) > 0) {
             self::identify((int) $fields['USER_ID']);
+
+            if (!defined('ADMIN_SECTION') && defined('SITE_ID')) {
+                \Onetrace\Connector\StoreMcp::rememberLogin((string) SITE_ID);
+            }
         }
     }
 
@@ -52,6 +57,8 @@ final class User
         if (!headers_sent() && Connection::anonymousId() !== null) {
             setcookie('cdp_aid', '', ['expires' => time() - 3600, 'path' => '/']);
         }
+
+        \Onetrace\Connector\StoreMcp::forgetLogin();
     }
 
     private static function identify(int $userId): void

@@ -1,0 +1,21 @@
+<?php
+
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_CODE'] = 'OneTrace: код подтверждения для чата';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_CODE_EMAIL_TO'] = 'адрес покупателя';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_CODE_CODE'] = 'код из 6 цифр, действует 10 минут';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_CODE_SUBJECT'] = '#SITE_NAME#: код подтверждения';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_CODE_MESSAGE'] = 'Ваш код для чата с магазином #SITE_NAME#: #CODE#
+
+Он действует 10 минут. Если вы его не запрашивали, просто проигнорируйте это письмо.';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST'] = 'OneTrace: заявка покупателя из чата';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_EMAIL_TO'] = 'адрес магазина';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_ORDER_ID'] = 'номер заказа';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_ORDER_REAL_ID'] = 'ID заказа';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_KIND'] = 'вид заявки';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_REQUEST'] = 'текст заявки';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_SUBJECT'] = '#SITE_NAME#: заказ #ORDER_ID# — #KIND#';
+$MESS['ONETRACE_STORE_MCP_EVENT_ONETRACE_STORE_MCP_REQUEST_MESSAGE'] = 'Покупатель заказа #ORDER_ID# оставил заявку в чате OneTrace:
+
+#REQUEST#
+
+Заявка также в комментарии менеджера к заказу: #SERVER_NAME#/bitrix/admin/sale_order_view.php?ID=#ORDER_REAL_ID#';

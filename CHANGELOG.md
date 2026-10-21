@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.7.0 — 2026-10-22
+
+- MCP server of the store for the OneTrace AI chat bot (store MCP contract v1, onetrace-php 1.13): `/bitrix/services/onetrace.connector/mcp.php?site=<site>`, connected to the bot of the project when the settings are saved ("AI chat bot: store MCP" of each site, the secret key needs `chats.manage`; sites of one project share one connection, turning it off disconnects it). The platform key and the token secret are generated once in the module options.
+- Reading tools on by default: orders of the customer (the account and the other accounts with its email), an order with lines, payment, delivery and the tracking number with its link, tracking of deducted shipments, stock and prices of the catalog with offers, delivery services, the return policy (text and page in the settings). Actions off by default: cancel an order with nothing paid and nothing shipped, return and delivery change requests to the shop (the manager comment of the order and the mail event `ONETRACE_STORE_MCP_REQUEST`, once per idempotency key). The owner chooses the tools in "What the bot may do".
+- Customers are confirmed by the login on the site (the `onetrace_chat` cookie and the token from `chat-customer.php` → `cdp.chatCustomer()`, tracker 1.16.0; nothing personal in the composite cache) or by a 6-digit code by the mail event `ONETRACE_STORE_MCP_CODE` (the `onetrace.connector:onStoreMcpSendCode` event for SMS). With store emails through OneTrace the code goes as `login_code` (not tracked, redacted after sending). The mail event types and their templates are made when the store MCP is turned on and removed on uninstall.
+- Saving the settings also copies the services of the new version to `/bitrix/services/onetrace.connector/`.
+- onetrace-php 1.13.
+
 ## 1.6.0 — 2026-10-20
 
 - Store emails through OneTrace (the "Store emails" section of the platform, read with the secret key and the `messages.send` permission, cached for 5 minutes and cleared when the settings are saved): Bitrix mail events (`main:OnBeforeEventSend`) are built as Bitrix builds them and sent to `POST /api/v1/emails`, one request per recipient — as they are (subject, HTML or escaped text with links, text, sender name, Reply-To, attachments of allowed types) with "Send store emails through OneTrace" on, and order emails of the kinds with an enabled OneTrace template as the order data (number, order page, lines with pictures, links, articles and options, totals, address, tracking, cancellation reason, refund) in the language of the site. Copies to the shop addresses (CC, BCC, the sender address, the order email, "Copies of all emails") never go through OneTrace — they stay in the Bitrix email, so the platform makes no customer profiles of staff addresses.

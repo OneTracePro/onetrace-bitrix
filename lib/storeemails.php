@@ -66,6 +66,8 @@ final class StoreEmails
         'SENDER_SUBSCRIBE_CONFIRM' => 'email_verification',
         'USER_CODE_REQUEST' => 'login_code',
         'CATALOG_PRODUCT_SUBSCRIBE_LIST_CONFIRM' => 'login_code',
+        // The confirmation code of the store MCP server for the AI chat bot.
+        'ONETRACE_STORE_MCP_CODE' => 'login_code',
         'USER_PASS_CHANGED' => 'other',
         'NEW_DEVICE_LOGIN' => 'other',
     ];

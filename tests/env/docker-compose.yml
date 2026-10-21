@@ -1,4 +1,5 @@
 # Тестовый 1С-Битрикс «Малый бизнес» (пробная версия) с этим модулем: tests/env/run.sh.
+# База и файлы сайта — в именованных томах и переживают `docker compose down`; начать заново — `docker compose down -v`.
 name: onetrace-bitrix
 services:
   db:
@@ -13,6 +14,8 @@ services:
       test: [CMD, healthcheck.sh, --connect]
       interval: 2s
       retries: 30
+    volumes:
+      - db:/var/lib/mysql
   web:
     build:
       context: .
@@ -27,4 +30,5 @@ services:
       - www:/var/www/html
       - ../..:/var/www/html/local/modules/onetrace.connector
 volumes:
+  db:
   www:

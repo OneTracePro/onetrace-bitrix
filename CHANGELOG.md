@@ -2,6 +2,10 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.8.0 — 2026-10-22
+
+- The `onetrace:preferences` component — communication preferences in the personal section, the OneTrace preference center inside the store (onetrace-php 1.14): subscription topics of the project by channel with the channel names in the site language, the frequency of marketing messages (as they come, weekly, monthly), a pause for 30 or 90 days or resuming, "Unsubscribe from everything". Saving sends every topic of the form in every channel that can change, so an unticked box unsubscribes; blocked channels are read only; after saving the page is opened again with a notice (no repeated form on reload). The secret key needs `profiles.read` and `profiles.write`.
+
 ## 1.7.0 — 2026-10-22
 
 - MCP server of the store for the OneTrace AI chat bot (store MCP contract v1, onetrace-php 1.13): `/bitrix/services/onetrace.connector/mcp.php?site=<site>`, connected to the bot of the project when the settings are saved ("AI chat bot: store MCP" of each site, the secret key needs `chats.manage`; sites of one project share one connection, turning it off disconnects it). The platform key and the token secret are generated once in the module options.

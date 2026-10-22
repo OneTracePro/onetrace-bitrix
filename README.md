@@ -129,6 +129,16 @@ $APPLICATION->IncludeComponent('onetrace:loyalty.account', '', []);
 
 — the balance, the points that become available after the return period, the history, and the "Join" button for those who are not members yet.
 
+## Communication preferences
+
+A page of the personal section with the component
+
+```php
+$APPLICATION->IncludeComponent('onetrace:preferences', '', []);
+```
+
+shows the OneTrace preference center inside the store: the subscription topics of the project (set up in **Messaging rules → Subscription topics** of the platform) by the channels the customer gets messages in, how often marketing messages come (as they come, at most once a week or a month), a pause for 30 or 90 days and "Unsubscribe from everything". Messages about orders and the account keep coming. The secret key needs the `profiles.read` and `profiles.write` scopes. Add the page to the menu of the personal section, e.g. `/personal/newsletters/`.
+
 ## Promo codes
 
 Pools of promo codes are set up in the **Promo codes** section of the platform; the discount is a cart rule of the store (**Store → Marketing → Cart rules**, with coupons). Bind the rule to the pool in the setting "Promo codes" of the site, one per line:

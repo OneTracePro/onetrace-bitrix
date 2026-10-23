@@ -2,6 +2,13 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.9.0 — 2026-10-23
+
+- The OneTrace search widget (the setting "OneTrace search widget", off by default): when the widget is enabled in the project (Site → Search of the platform, read with the write key in the language of the site every 10 minutes and when the settings are saved), the tracker draws the search layer under the search fields of the store (`data-cdp-search`, also without "Product search") and the results in the search page — `onetrace:catalog.search` prints `<div data-cdp-search-results data-query-param="q" data-cart-url="…">` instead of the products of the store (facets, sorting, loading while scrolling) and does not search on the server; the tracker sends `search` and follows the redirect rules. The widget off, the tracker off or an API error — the search as before.
+- "Add to cart" of the widget: the service `/bitrix/services/onetrace.connector/cart.php?site=<site>&id=<product>` — POST `quantity` with the header `X-Requested-With: XMLHttpRequest` (400 without it, 405 for other methods); a simple product goes to the cart of the visitor with the checks of the catalog (`{"ok": true, "count": <lines in the cart>}`), a product with offers, one that cannot be bought or an error of the cart opens the product page (`{"ok": false, "redirect": …}`), an unknown id — the home page of the site. The id of another language site is its copy with the same `XML_ID`. The mini-cart of the theme is refreshed by `OnBasketChange` on the `cdp:add-to-cart` event of the tracker.
+- Over the monthly search limit of the plan (402 `quota_exceeded`) the search of Bitrix works, without retries.
+- onetrace-php 1.15.
+
 ## 1.8.0 — 2026-10-22
 
 - The `onetrace:preferences` component — communication preferences in the personal section, the OneTrace preference center inside the store (onetrace-php 1.14): subscription topics of the project by channel with the channel names in the site language, the frequency of marketing messages (as they come, weekly, monthly), a pause for 30 or 90 days or resuming, "Unsubscribe from everything". Saving sends every topic of the form in every channel that can change, so an unticked box unsubscribes; blocked channels are read only; after saving the page is opened again with a notice (no repeated form on reload). The secret key needs `profiles.read` and `profiles.write`.

@@ -73,8 +73,15 @@ final class Page
             self::rememberLogin($siteId);
         }
 
-        if (\Onetrace\Connector\Search\Search::enabled($siteId)) {
+        // The search widget finds the fields with data-cdp-search itself; its "Add to cart" refreshes the mini-cart.
+        $widget = \Onetrace\Connector\Search\Widget::active($siteId);
+
+        if ($widget || \Onetrace\Connector\Search\Search::enabled($siteId)) {
             Asset::getInstance()->addString(self::searchBoxes(), false, AssetLocation::AFTER_JS_KERNEL);
+        }
+
+        if ($widget) {
+            Asset::getInstance()->addString(\Onetrace\Connector\Search\Widget::script(), false, AssetLocation::AFTER_JS_KERNEL);
         }
     }
 

@@ -17,6 +17,7 @@ use Onetrace\Connector\Events;
 use Onetrace\Connector\Loyalty;
 use Onetrace\Connector\PromoSync;
 use Onetrace\Connector\Queue;
+use Onetrace\Connector\Search\Widget;
 use Onetrace\Connector\Status;
 use Onetrace\Connector\StoreEmails;
 use Onetrace\Connector\StoreMcp;
@@ -32,7 +33,7 @@ $sites = Config::sites();
 $fields = [
     'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password',
     'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'delivered_statuses' => 'multiselect', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
-    'part_notify' => 'checkbox', 'part_search' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
+    'part_notify' => 'checkbox', 'part_search' => 'checkbox', 'part_search_widget' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
     'loyalty' => 'select', 'promo_pools' => 'textarea',
 ];
 /** Choices of the select fields: the bonus points are off, a payment of the order or a discount on its lines. */
@@ -116,6 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
         StoreMcp::connect();
         // Store emails: the settings of the new key (or of the changed project) are read again.
         StoreEmails::forget();
+        // The search widget: the state of the project is read again.
+        Widget::forget();
         $notes[] = ['ok' => true, 'text' => Loc::getMessage('ONETRACE_OPTIONS_SAVED')];
     } elseif (isset($_POST['check'], $sites[(string) $_POST['check']])) {
         $notes = Status::check((string) $_POST['check']);
@@ -147,7 +150,7 @@ $stats = Queue::stats();
     <?php foreach ($sites as $siteId => $language) { ?>
         <?php $control->BeginNextTab(); ?>
         <?php foreach ($fields as $name => $type) { ?>
-            <?php $value = $type === 'multiselect' ? implode(',', Config::deliveredStatuses($siteId)) : Config::get($name, $siteId, str_starts_with($name, 'part_') && $name !== 'part_search' ? 'Y' : ''); ?>
+            <?php $value = $type === 'multiselect' ? implode(',', Config::deliveredStatuses($siteId)) : Config::get($name, $siteId, str_starts_with($name, 'part_') && !str_starts_with($name, 'part_search') ? 'Y' : ''); ?>
             <tr>
                 <td width="40%"><label for="<?= $siteId . '_' . $name ?>"><?= Loc::getMessage('ONETRACE_OPTIONS_' . strtoupper($name)) ?></label></td>
                 <td width="60%">

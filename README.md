@@ -27,7 +27,7 @@ Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.
 | `product_viewed` | the product page: the view counter of the standard catalog.element templates | server, works with the composite cache |
 | Page views | the storefront | browser tracker |
 | Product catalog | product, price and stock changes (orders, cancellations, the admin, store documents), daily, and the "Upload the whole catalog" button | server, `products.write` |
-| `search` | the first page of the catalog search results, with "Product search" on | server |
+| `search` | the first page of the catalog search results, with "Product search" on | server; with the OneTrace search widget — the tracker |
 
 Every Bitrix order has a user (the guest checkout registers one), so orders, the cart and the account land in one profile; the browser of the checkout is saved with the order, so its later events (payment, refund) use it too.
 
@@ -107,6 +107,16 @@ $APPLICATION->IncludeComponent('onetrace:catalog.search', '', $params…); // in
 - A query with a redirect rule (Site → Search of the platform, e.g. "delivery" → the delivery page) opens the rule's page.
 - The search fields of the store (`search.title` and forms with `q`) show suggestions of the tracker while typing instead of the title search popup.
 - Any error of the platform keeps `bitrix:catalog.search`.
+
+### OneTrace search widget
+
+With **OneTrace search widget** on and the widget enabled in the project (Site → Search of the platform), the tracker draws the search itself:
+
+- a search layer under the search fields of the store (they get `data-cdp-search`, with or without "Product search");
+- the results in the search page of `onetrace:catalog.search` — the component prints `<div data-cdp-search-results data-query-param="q" data-cart-url="/bitrix/services/onetrace.connector/cart.php?site=s1&id={id}">` instead of the products of the store: facets, sorting, loading while scrolling. The module does not search on the server then; the tracker sends `search` and follows the redirect rules;
+- "Add to cart": the service `cart.php` of the module (POST `quantity` with the header `X-Requested-With: XMLHttpRequest`, otherwise 400) adds a simple product to the cart of the visitor with the checks of the catalog and answers `{"ok": true, "count": <lines in the cart>}`; a product with offers, one that cannot be bought or an error — `{"ok": false, "redirect": <the product page>}`, the widget opens it. The mini-cart of the theme (`sale.basket.basket.line`) is refreshed by `OnBasketChange`.
+
+The module asks the platform whether the widget is enabled every 10 minutes and when the settings are saved; the widget off, the tracker off or an API error — the search above as before. Over the monthly search limit of the plan (402) the store search works too.
 
 ## Languages of the catalog
 

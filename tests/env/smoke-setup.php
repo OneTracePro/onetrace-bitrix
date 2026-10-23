@@ -1,7 +1,7 @@
 <?php
 
 // Storefront check (tests/env/smoke.sh): settings of the site s1, a product, a page with the recommendation widget,
-// a product out of stock with the "Notify me when available" component, the store MCP server. Prints the ids of the
+// the search page, a product out of stock with the "Notify me when available" component, the store MCP server. Prints the ids of the
 // product, the section and the product out of stock, and the key of the store MCP server. With "queue" — prints the waiting messages instead.
 $_SERVER['DOCUMENT_ROOT'] = '/var/www/html';
 define('NO_KEEP_STATISTIC', true);
@@ -25,6 +25,15 @@ if (($argv[1] ?? '') === 'platform') {
     return;
 }
 
+// "widget Y|N": the OneTrace search widget alone (the search fields get data-cdp-search from it), or back to the
+// product search of the module.
+if (($argv[1] ?? '') === 'widget') {
+    Config::set('part_search_widget', ($argv[2] ?? '') === 'Y' ? 'Y' : 'N', 's1');
+    Config::set('part_search', ($argv[2] ?? '') === 'Y' ? 'N' : 'Y', 's1');
+
+    return;
+}
+
 if (($argv[1] ?? '') === 'queue') {
     foreach (QueueTable::getList(['select' => ['KIND', 'PAYLOAD'], 'order' => ['ID' => 'ASC']])->fetchAll() as $row) {
         echo $row['KIND'], ' ', $row['PAYLOAD'], "\n";
@@ -33,7 +42,7 @@ if (($argv[1] ?? '') === 'queue') {
     return;
 }
 
-foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y', 'store_mcp' => 'Y'] as $name => $value) {
+foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y', 'part_search_widget' => 'N', 'store_mcp' => 'Y'] as $name => $value) {
     Config::set($name, $value, 's1');
 }
 

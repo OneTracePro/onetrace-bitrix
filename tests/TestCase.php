@@ -16,6 +16,7 @@ use JsonSchema\Validator;
 use Onetrace\Connector\Config;
 use Onetrace\Connector\Connection;
 use Onetrace\Connector\Queue;
+use Onetrace\Connector\Search\Widget;
 use Onetrace\Connector\StoreEmails;
 use Onetrace\Connector\Tests\Support\RecordingTransport;
 
@@ -29,7 +30,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
 
     protected function setUp(): void
     {
-        foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_test', 'secret_key' => 'cdp_sk_test', 'consent_property' => '', 'consent_topic' => '', 'push' => 'N'] as $name => $value) {
+        foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_test', 'secret_key' => 'cdp_sk_test', 'consent_property' => '', 'consent_topic' => '', 'push' => 'N', 'part_search_widget' => 'N'] as $name => $value) {
             Config::set($name, $value, self::SITE);
         }
 
@@ -40,6 +41,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
         Queue::clear();
         Queue::resume();
         StoreEmails::forget();
+        Widget::forget();
         $this->platform = new RecordingTransport();
         Connection::reset(['transport' => $this->platform]);
         $_COOKIE = [];

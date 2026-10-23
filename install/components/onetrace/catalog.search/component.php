@@ -5,6 +5,8 @@
  * parameters. The products, their order and their number come from the platform (word forms, typos, the wrong keyboard
  * layout, the visitor's interests) and are shown by bitrix:catalog.section of the store; a query with a redirect rule
  * opens its page. The setting "Product search" off, an empty query or any API error — bitrix:catalog.search as usual.
+ * With the search widget of OneTrace (Search\Widget) the tracker draws the results in the container of the component:
+ * the module does not search itself then.
  *
  * @var array $arParams
  * @var array $arResult
@@ -18,6 +20,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) {
 use Bitrix\Main\Loader;
 use Bitrix\Main\UI\PageNavigation;
 use Onetrace\Connector\Search\Search;
+use Onetrace\Connector\Search\Widget;
 
 $query = trim((string) ($_REQUEST['q'] ?? ''));
 $result = null;
@@ -29,6 +32,15 @@ foreach ($arParams as $key => $value) {
     if (!str_starts_with((string) $key, '~')) {
         $params[$key] = $arParams['~' . $key] ?? $value;
     }
+}
+
+// The widget: the results, the search event and the redirect rules are the tracker's. The container comes from the
+// component itself, so a copied template of the site keeps working.
+if (Loader::includeModule('onetrace.connector') && Widget::active(SITE_ID)) {
+    $this->setFrameMode(true);
+    echo Widget::container(SITE_ID);
+
+    return;
 }
 
 if ($query !== '' && Loader::includeModule('onetrace.connector') && Search::enabled(SITE_ID)) {

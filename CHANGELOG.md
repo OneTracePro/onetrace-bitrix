@@ -2,6 +2,13 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.10.0 — 2026-10-24
+
+- Product descriptions in the catalog (onetrace-php 1.16): the detail text of the element, the preview text when it is empty — HTML as it is, a text of the type "text" escaped with its line breaks (so `<` and `&` of the text stay text); the platform keeps it as text up to 5000 characters, and OneTrace AI answers shoppers' questions about the product from it. Copies of the products on a site in another language of the project (the same `XML_ID`) add the translated description.
+- "Ask AI about this product" on the product page (the setting "Show “Ask AI about this product” on product pages", on by default, needs the tracker): with the widget enabled in OneTrace (Site → Product questions) the tracker draws it in `<div data-cdp-ask data-product-id="{product id}">` — answers of the AI or a button of the chat with the product. A script of the module puts the element under the buy buttons of the standard `catalog.element` templates (`.default`, `bootstrap_v4`, `store_v3` and the themes made of them), the same on every page, so the composite cache keeps working.
+- The `onetrace:product.ask` component (`PRODUCT_ID` — the element of the page) for another place, another template or a site in another language of the project: an offer gives its product, a copy of a language site the product of the uploaded catalog; a page with the component gets no automatic place.
+- onetrace-php 1.16.
+
 ## 1.9.0 — 2026-10-23
 
 - The OneTrace search widget (the setting "OneTrace search widget", off by default): when the widget is enabled in the project (Site → Search of the platform, read with the write key in the language of the site every 10 minutes and when the settings are saved), the tracker draws the search layer under the search fields of the store (`data-cdp-search`, also without "Product search") and the results in the search page — `onetrace:catalog.search` prints `<div data-cdp-search-results data-query-param="q" data-cart-url="…">` instead of the products of the store (facets, sorting, loading while scrolling) and does not search on the server; the tracker sends `search` and follows the redirect rules. The widget off, the tracker off or an API error — the search as before.

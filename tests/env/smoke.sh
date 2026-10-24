@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Storefront check over HTTP after tests/env/run.sh: the tracker in <head>, /cdp-sw.js from the site root, a product
 # view from the view counter of catalog.element, the recommendation widget component, the "Notify me when available" form,
-# the store MCP server, the chat token service, the search widget and its cart service.
+# the place of "Ask AI about this product", the store MCP server, the chat token service, the search widget and its cart service.
 set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${BITRIX_PORT:-8895}"
@@ -63,6 +63,7 @@ check "search redirect rule" "$REDIRECT" "302 http://localhost/delivery/"
 check "store MCP refuses another key" "$MCP_DENIED" "401"
 check "store MCP contract" "$MCP" '"onetrace/store":{"version":1}'
 check "chat token script" "$HOME_PAGE" "onetrace_chat"
+check "place of “Ask AI about this product”" "$HOME_PAGE" "d.setAttribute('data-cdp-ask','')"
 check "no chat token for a guest" "$CHAT_GUEST" '{"token":null}'
 check "search widget container" "$WIDGET_SEARCH" '<div data-cdp-search-results data-query-param="q" data-cart-url="/bitrix/services/onetrace.connector/cart.php?site=s1&amp;id={id}"></div>'
 check "search widget refreshes the mini-cart" "$WIDGET_HOME" "BX.onCustomEvent('OnBasketChange')"

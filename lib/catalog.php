@@ -111,6 +111,20 @@ final class Catalog
     }
 
     /**
+     * The id of a product of the page in the platform catalog: an offer gives its product, a copy of another language
+     * site (the same XML_ID) — the product of the uploaded catalog. Null — not an element of the trade catalog, or a
+     * copy without its product.
+     */
+    public static function platformId(int $elementId): ?int
+    {
+        if ($elementId <= 0 || !self::isCatalogElement($elementId)) {
+            return null;
+        }
+
+        return self::mainProducts(self::catalogIds($elementId)[0])[0] ?? null;
+    }
+
+    /**
      * The product and the offer of a basket or order line: [product id, offer id or null].
      *
      * @return array{0: int, 1: int|null}
@@ -142,6 +156,7 @@ final class Catalog
         if ($iblocks !== [] && $productIds !== []) {
             $elements = \CIBlockElement::GetList([], ['ID' => $productIds, 'IBLOCK_ID' => $iblocks], false, false, [
                 'ID', 'IBLOCK_ID', 'NAME', 'ACTIVE', 'DETAIL_PAGE_URL', 'DETAIL_PICTURE', 'PREVIEW_PICTURE', 'IBLOCK_SECTION_ID', 'XML_ID',
+                'DETAIL_TEXT', 'DETAIL_TEXT_TYPE', 'PREVIEW_TEXT', 'PREVIEW_TEXT_TYPE',
             ]);
             $base = rtrim(Connection::siteUrl($siteId), '/');
 
@@ -169,7 +184,8 @@ final class Catalog
 
     /**
      * Translations from a site of the project in another language: its copies of the products and sections (the same
-     * XML_ID) give the name, the link of that site and the values of the attributes (under the labels of the main site).
+     * XML_ID) give the name, the link of that site, the description and the values of the attributes (under the labels
+     * of the main site).
      *
      * @param list<array<string, mixed>> $items
      * @param list<array{xml: string, labels: array<string, string>}> $sources the main XML_ID and attribute labels by code
@@ -188,13 +204,16 @@ final class Catalog
 
         $copies = [];
         $base = rtrim(Connection::siteUrl($siteId), '/');
-        $elements = \CIBlockElement::GetList([], ['XML_ID' => $xmlIds, 'IBLOCK_ID' => $iblocks, 'ACTIVE' => 'Y'], false, false, ['ID', 'IBLOCK_ID', 'NAME', 'DETAIL_PAGE_URL', 'XML_ID']);
+        $elements = \CIBlockElement::GetList([], ['XML_ID' => $xmlIds, 'IBLOCK_ID' => $iblocks, 'ACTIVE' => 'Y'], false, false, [
+            'ID', 'IBLOCK_ID', 'NAME', 'DETAIL_PAGE_URL', 'XML_ID', 'DETAIL_TEXT', 'DETAIL_TEXT_TYPE', 'PREVIEW_TEXT', 'PREVIEW_TEXT_TYPE',
+        ]);
 
         while ($element = $elements->GetNextElement()) {
             $fields = $element->GetFields();
             $copies[(string) $fields['XML_ID']] ??= [
                 'name' => html_entity_decode((string) $fields['~NAME']),
                 'url' => (string) $fields['~DETAIL_PAGE_URL'] !== '' ? self::absolute((string) $fields['~DETAIL_PAGE_URL'], $base) : null,
+                'description' => self::description($fields),
                 'values' => array_map(static fn (array $attribute): string => $attribute[1], self::attributes((int) $fields['IBLOCK_ID'], $element->GetProperties())[1]),
             ];
         }
@@ -214,7 +233,8 @@ final class Catalog
                 }
             }
 
-            $items[$index] = CatalogItem::translate($item, $language, $copy['name'] !== $item['name'] ? $copy['name'] : null, $copy['url'] !== ($item['url'] ?? null) ? $copy['url'] : null, $params);
+            $description = $copy['description'] !== null && CatalogItem::description($copy['description']) !== ($item['description'] ?? null) ? $copy['description'] : null;
+            $items[$index] = CatalogItem::translate($item, $language, $copy['name'] !== $item['name'] ? $copy['name'] : null, $copy['url'] !== ($item['url'] ?? null) ? $copy['url'] : null, $params, $description);
         }
 
         $sectionXml = [];
@@ -333,8 +353,31 @@ final class Catalog
             $oldPrice,
             $brand,
             $params,
-            self::stock($product, $offers)
+            self::stock($product, $offers),
+            self::description($fields)
         );
+    }
+
+    /**
+     * The description of an element for the AI answers about the product («Ask AI»): the detail text, the preview
+     * text when it is empty. HTML goes as it is (the library turns it into text); a text of the type "text" is
+     * escaped with its line breaks, so "<" and "&" of the text stay text. Null — none.
+     *
+     * @param array<string, mixed> $fields DETAIL_TEXT, PREVIEW_TEXT and their types (~ — not escaped by GetNext)
+     */
+    public static function description(array $fields): ?string
+    {
+        foreach (['DETAIL', 'PREVIEW'] as $kind) {
+            $text = (string) ($fields['~' . $kind . '_TEXT'] ?? $fields[$kind . '_TEXT'] ?? '');
+            $type = (string) ($fields['~' . $kind . '_TEXT_TYPE'] ?? $fields[$kind . '_TEXT_TYPE'] ?? 'text');
+            $html = $type === 'html' ? $text : nl2br(htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+
+            if (CatalogItem::description($html) !== null) {
+                return $html;
+            }
+        }
+
+        return null;
     }
 
     /**

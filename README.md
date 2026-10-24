@@ -3,7 +3,7 @@
 [![CI](https://github.com/OneTracePro/onetrace-bitrix/actions/workflows/ci.yml/badge.svg)](https://github.com/OneTracePro/onetrace-bitrix/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.pro), the customer data platform: orders, customers and newsletter consents from the server, the website tracker, product views, the product catalog, recommendation widgets, Web Push and the store emails. Abandoned cart, browse abandonment, post-purchase and win-back journeys, product recommendations and predictions work right after you connect the store.
+Connects a 1C-Bitrix "Site management" store to [OneTrace.pro](https://onetrace.pro), the customer data platform: orders, customers and newsletter consents from the server, the website tracker, product views, the product catalog with descriptions for "Ask AI about the product", recommendation widgets, Web Push and the store emails. Abandoned cart, browse abandonment, post-purchase and win-back journeys, product recommendations and predictions work right after you connect the store.
 
 [Русская версия](README.ru.md)
 
@@ -80,7 +80,7 @@ Bitrix has no email for some order events; with their OneTrace template on, **th
 
 ## Catalog
 
-The catalog is made of the products of the commercial catalog infoblocks bound to the site. Trade offers are not separate products: an offer uploads its parent, and a product with offers takes the lowest offer price. The price is what a guest pays with discounts; the old price — the price before discounts. Categories are the element sections with their parents; the brand — the property `BRAND`, `BRAND_REF` or `MANUFACTURER`; attributes — the properties of the smart filter.
+The catalog is made of the products of the commercial catalog infoblocks bound to the site. Trade offers are not separate products: an offer uploads its parent, and a product with offers takes the lowest offer price. The price is what a guest pays with discounts; the old price — the price before discounts. Categories are the element sections with their parents; the brand — the property `BRAND`, `BRAND_REF` or `MANUFACTURER`; attributes — the properties of the smart filter; the description — the detail text, or the preview text when it is empty (HTML as it is, a text of the type "text" with its line breaks; the platform keeps it as text, up to 5000 characters) — OneTrace AI answers shoppers' questions about the product from it.
 
 The stock (`stock`) goes with a product that keeps count — quantity tracing is on and buying at zero ("Allow purchase when out of stock") is off, in the product or, for "default", in the settings of the "Commercial catalog" module; a product with offers sends the sum of its active offers in stock when every offer keeps count and none is sold at zero. Products without tracing or sold at zero go without it: zero stock does not mean "not available" for them. A change of the quantity — an order, its cancellation, the admin, a store document — uploads the product again. The platform uses the stock only when "Use stock levels from the API and plugins" is on in its catalog settings: then zero takes the product off sale and the "low stock" journey trigger works.
 
@@ -95,7 +95,19 @@ The stock (`stock`) goes with a product that keeps count — quantity tracing is
 
   For a product that cannot be bought it prints `<div data-cdp-notify="{product id}"></div>` (an offer gives its product), and the tracker draws the "Notify me when available" form of the project there (Site → Forms of the platform); the platform tells the customer when the product is back. The setting "Show the “Notify when available” form" turns it off per site. The standard subscribe button can then be removed: take its component out of the template or turn off the template parameter "Enable back-in-stock notifications" (`PRODUCT_SUBSCRIPTION`) of the catalog component. The component has no cache of its own: in a cached `catalog.element` it is cached with the product page, which Bitrix clears when the availability changes.
 
-## Product search
+## Ask AI about the product
+
+With the widget enabled in OneTrace (**Site → Product questions** of the platform) the product page shows "Ask AI about this product": the AI answers shoppers' questions from the product description, its attributes and the knowledge base of the shop, or (the "chat" mode) a button opens the OneTrace chat with the product. The setting **Show “Ask AI about this product” on product pages** (on by default) turns it off per site; it needs the tracker.
+
+- **Automatically**: on the product page of the standard `catalog.element` templates (`.default`, `bootstrap_v4`, `store_v3` and the themes made of them — the buy buttons with the id `bx_<number>_<product id>_basket_actions` inside `data-entity="main-button-container"`), a script of the module puts `<div data-cdp-ask data-product-id="{product id}"></div>` under the buy buttons. The script is the same on every page, so the composite cache keeps working; with the widget off in OneTrace the element stays empty.
+- **Another place, another template, or a site in another language of the project** (its copies of the products have their own ids, which the platform does not know): put the component in the template of the product page (`bitrix:catalog.element`, `template.php` of your template) where the widget should be:
+
+  ```php
+  $APPLICATION->IncludeComponent('onetrace:product.ask', '', ['PRODUCT_ID' => $arResult['ID']], $component, ['HIDE_ICONS' => 'Y']);
+  ```
+
+  It prints the element with the id of the platform catalog: an offer gives its product, a copy of a language site the product of the uploaded catalog (the same `XML_ID`). A page with the component gets no automatic place.
+
 
 Turn on **Product search** in the settings (the plan of the project must include it) and replace the component in the search page of the catalog — in the template of the complex component `bitrix:catalog` it is `search.php`:
 
@@ -120,7 +132,7 @@ The module asks the platform whether the widget is enabled every 10 minutes and 
 
 ## Languages of the catalog
 
-The catalog of a project comes from its first site. Other sites connected to the same project (the same address and secret key) with another language have their own copies of the catalog — as the exchange with 1C makes them — and the products and sections with the same `XML_ID` add translations: names, links on that site and the values of the attributes. The platform shows recommendations, widgets, search results and emails in the visitor's language.
+The catalog of a project comes from its first site. Other sites connected to the same project (the same address and secret key) with another language have their own copies of the catalog — as the exchange with 1C makes them — and the products and sections with the same `XML_ID` add translations: names, links on that site, descriptions and the values of the attributes. The platform shows recommendations, widgets, search results and emails in the visitor's language.
 
 ## Bonus points
 

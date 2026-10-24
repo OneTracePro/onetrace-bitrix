@@ -16,7 +16,7 @@ final class Config
     public const MODULE = 'onetrace.connector';
 
     /** Parts of the module that can be turned off one by one, all on by default except search. */
-    public const PARTS = ['tracker', 'orders', 'cart', 'catalog', 'newsletter', 'notify'];
+    public const PARTS = ['tracker', 'orders', 'cart', 'catalog', 'newsletter', 'notify', 'ask'];
 
     public static function get(string $name, ?string $siteId = null, string $default = ''): string
     {
@@ -102,6 +102,15 @@ final class Config
         return self::storefront($siteId) && self::enabled('tracker', $siteId) && self::enabled('notify', $siteId);
     }
 
+    /**
+     * "Ask AI about this product" of the platform on the product page (the component onetrace:product.ask and the
+     * automatic place in the standard catalog.element templates): the tracker draws it, so it needs the storefront part.
+     */
+    public static function ask(?string $siteId = null): bool
+    {
+        return self::storefront($siteId) && self::enabled('tracker', $siteId) && self::enabled('ask', $siteId);
+    }
+
     public static function push(?string $siteId = null): bool
     {
         return self::get('push', $siteId, 'N') === 'Y';
@@ -162,6 +171,21 @@ final class Config
         }
 
         return $languages;
+    }
+
+    /**
+     * The site gives translations to the catalog of another site of its project (translationSites()): its products are
+     * copies with their own ids, the platform knows them by the ids of the main site.
+     */
+    public static function translationSite(string $siteId): bool
+    {
+        foreach (self::catalogSites() as $mainSiteId) {
+            if ($mainSiteId !== $siteId && in_array($siteId, self::translationSites($mainSiteId), true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Language of a site: "ru". */

@@ -83,6 +83,28 @@ final class Page
         if ($widget) {
             Asset::getInstance()->addString(\Onetrace\Connector\Search\Widget::script(), false, AssetLocation::AFTER_JS_KERNEL);
         }
+
+        // "Ask AI about this product" in the product page of the standard templates; the copies of a language site have
+        // ids the platform does not know — the component maps them.
+        if (Config::ask($siteId) && !Config::translationSite($siteId)) {
+            Asset::getInstance()->addString(self::askBox(), false, AssetLocation::AFTER_JS_KERNEL);
+        }
+    }
+
+    /**
+     * The place of "Ask AI about this product" under the buy buttons of catalog.element, when the page has none of its
+     * own (the component onetrace:product.ask): the standard templates (.default, bootstrap_v4, store_v3 and the themes
+     * made of them) give the buttons the id "bx_<number>_<product id>_basket_actions" inside data-entity
+     * "main-button-container", and the product block the id "bx_<number>_<product id>". The product id is the element
+     * of the page: an offer is never one. The script is the same on every page (the composite cache keeps it); the
+     * tracker notices the element when it appears and draws the widget only when it is enabled in OneTrace.
+     */
+    private static function askBox(): string
+    {
+        return "<script>document.addEventListener('DOMContentLoaded',function(){if(document.querySelector('[data-cdp-ask]'))return;var b=null,m=null;"
+            . "document.querySelectorAll('[id$=\"_basket_actions\"]').forEach(function(e){var r=m?null:/^(bx_\\d+_(\\d+))_basket_actions$/.exec(e.id);if(r&&document.getElementById(r[1])){m=r;b=e}});"
+            . "if(!m)return;var c=b.closest('[data-entity=\"main-button-container\"]')||b,d=document.createElement('div');"
+            . "d.setAttribute('data-cdp-ask','');d.setAttribute('data-product-id',m[2]);c.parentNode.insertBefore(d,c.nextSibling)});</script>";
     }
 
     /**

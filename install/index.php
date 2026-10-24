@@ -122,6 +122,7 @@ class onetrace_connector extends CModule
         DeleteDirFilesEx('/bitrix/components/onetrace/recommendations');
         DeleteDirFilesEx('/bitrix/components/onetrace/catalog.search');
         DeleteDirFilesEx('/bitrix/components/onetrace/catalog.notify');
+        DeleteDirFilesEx('/bitrix/components/onetrace/product.ask');
         DeleteDirFilesEx('/bitrix/components/onetrace/loyalty.account');
         DeleteDirFilesEx('/bitrix/components/onetrace/preferences');
         DeleteDirFilesEx('/bitrix/services/' . $this->MODULE_ID);

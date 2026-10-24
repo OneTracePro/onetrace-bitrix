@@ -33,7 +33,7 @@ $sites = Config::sites();
 $fields = [
     'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password',
     'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'delivered_statuses' => 'multiselect', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
-    'part_notify' => 'checkbox', 'part_search' => 'checkbox', 'part_search_widget' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
+    'part_notify' => 'checkbox', 'part_ask' => 'checkbox', 'part_search' => 'checkbox', 'part_search_widget' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
     'loyalty' => 'select', 'promo_pools' => 'textarea',
 ];
 /** Choices of the select fields: the bonus points are off, a payment of the order or a discount on its lines. */

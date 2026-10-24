@@ -59,4 +59,39 @@ final class CatalogTest extends TestCase
         self::assertSame('/api/v1/products', $upload['path']);
         self::assertSame((string) $product, $upload['body']['items'][0]['id']);
     }
+
+    public function testUploadsTheDescriptionAsText(): void
+    {
+        $product = $this->product('Trail runner', 80.0);
+        self::assertTrue((new \CIBlockElement())->Update($product, [
+            'DETAIL_TEXT' => '<p>Light <b>trail</b> shoes&nbsp;for&nbsp;rocks</p><ul><li>Mesh upper</li><li>Grip sole</li></ul>', 'DETAIL_TEXT_TYPE' => 'html',
+            'PREVIEW_TEXT' => 'Trail shoes', 'PREVIEW_TEXT_TYPE' => 'text',
+        ]));
+        $this->flush();
+
+        self::assertSame("Light trail shoes for rocks\n• Mesh upper\n• Grip sole", $this->uploaded($product)['description'] ?? null);
+    }
+
+    public function testATextDescriptionKeepsItsCharactersAndLines(): void
+    {
+        $product = $this->product('Bottle', 12.0);
+        self::assertTrue((new \CIBlockElement())->Update($product, ['DETAIL_TEXT' => "Height < 25 cm & 0.5 l\r\nDishwasher safe <yes>", 'DETAIL_TEXT_TYPE' => 'text']));
+        $this->flush();
+
+        self::assertSame("Height < 25 cm & 0.5 l\nDishwasher safe <yes>", $this->uploaded($product)['description'] ?? null);
+    }
+
+    public function testThePreviewTextWithoutTheDetailText(): void
+    {
+        $product = $this->product('Cap', 15.0);
+        self::assertTrue((new \CIBlockElement())->Update($product, ['DETAIL_TEXT' => '<p>&nbsp;</p>', 'DETAIL_TEXT_TYPE' => 'html', 'PREVIEW_TEXT' => '<p>Cotton cap</p>', 'PREVIEW_TEXT_TYPE' => 'html']));
+        $this->flush();
+
+        self::assertSame('Cotton cap', $this->uploaded($product)['description'] ?? null);
+
+        $plain = $this->product('Scarf', 18.0);
+        $this->flush();
+
+        self::assertArrayNotHasKey('description', (array) $this->uploaded($plain), 'No texts — no description.');
+    }
 }

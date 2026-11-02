@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Storefront check over HTTP after tests/env/run.sh: the tracker in <head>, /cdp-sw.js from the site root, a product
 # view from the view counter of catalog.element, the recommendation widget component, the "Notify me when available" form,
-# the place of "Ask AI about this product", the store MCP server, the chat token service, the search widget and its cart service.
+# the place of "Ask AI about this product", the store MCP server, the chat token and signed user id services, the search widget
+# and its cart service.
 set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${BITRIX_PORT:-8895}"
@@ -23,6 +24,7 @@ MCP_URL="http://localhost:$PORT/bitrix/services/onetrace.connector/mcp.php?site=
 MCP_DENIED=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer wrong' -d "$MCP_INIT" "$MCP_URL")
 MCP=$(curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $MCP_KEY" -d "$MCP_INIT" "$MCP_URL")
 CHAT_GUEST=$(curl -fsS "http://localhost:$PORT/bitrix/services/onetrace.connector/chat-customer.php?site=s1")
+VISITOR_GUEST=$(curl -fsS "http://localhost:$PORT/bitrix/services/onetrace.connector/visitor.php?site=s1")
 
 # A fake platform inside the container answers the search with a redirect rule.
 docker compose exec -T web sh -c 'printf "%s" "<?php header(\"Content-Type: application/json\"); echo json_encode([\"enabled\" => true, \"total\" => 0, \"items\" => [], \"redirect\" => \"http://localhost/delivery/\"]);" > /tmp/platform.php; (php -S 127.0.0.1:9999 /tmp/platform.php >/dev/null 2>&1 &)'
@@ -65,6 +67,9 @@ check "store MCP contract" "$MCP" '"onetrace/store":{"version":1}'
 check "chat token script" "$HOME_PAGE" "onetrace_chat"
 check "place of “Ask AI about this product”" "$HOME_PAGE" "d.setAttribute('data-cdp-ask','')"
 check "no chat token for a guest" "$CHAT_GUEST" '{"token":null}'
+check "signed user id script" "$HOME_PAGE" "visitor.php?site=s1"
+check "no identity key in the page" "$(grep -c cdp_ik_smoke <<<"$HOME_PAGE" || true)" "0"
+check "no signed user id for a guest" "$VISITOR_GUEST" '{"userId":null,"userHash":null}'
 check "search widget container" "$WIDGET_SEARCH" '<div data-cdp-search-results data-query-param="q" data-cart-url="/bitrix/services/onetrace.connector/cart.php?site=s1&amp;id={id}"></div>'
 check "search widget refreshes the mini-cart" "$WIDGET_HOME" "BX.onCustomEvent('OnBasketChange')"
 check "search widget keeps the search fields" "$WIDGET_HOME" "data-cdp-search"

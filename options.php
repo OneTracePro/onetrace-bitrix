@@ -31,7 +31,7 @@ if ($APPLICATION->GetGroupRight($module) < 'W' || !Loader::includeModule($module
 Loc::loadMessages(__FILE__);
 $sites = Config::sites();
 $fields = [
-    'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password',
+    'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password', 'identity_key' => 'password',
     'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'delivered_statuses' => 'multiselect', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
     'part_notify' => 'checkbox', 'part_ask' => 'checkbox', 'part_search' => 'checkbox', 'part_search_widget' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
     'loyalty' => 'select', 'promo_pools' => 'textarea',
@@ -171,7 +171,7 @@ $stats = Queue::stats();
                     <?php } elseif ($type === 'textarea') { ?>
                         <textarea id="<?= $siteId . '_' . $name ?>" name="site[<?= $siteId ?>][<?= $name ?>]" rows="3" cols="60" placeholder="welcome = 12"><?= htmlspecialcharsbx($value) ?></textarea>
                     <?php } elseif ($type === 'password') { ?>
-                        <input type="password" id="<?= $siteId . '_' . $name ?>" name="site[<?= $siteId ?>][<?= $name ?>]" value="" size="60" autocomplete="new-password" placeholder="<?= $value !== '' ? Loc::getMessage('ONETRACE_OPTIONS_SECRET_SAVED') : 'cdp_sk_…' ?>">
+                        <input type="password" id="<?= $siteId . '_' . $name ?>" name="site[<?= $siteId ?>][<?= $name ?>]" value="" size="60" autocomplete="new-password" placeholder="<?= $value !== '' ? Loc::getMessage('ONETRACE_OPTIONS_SECRET_SAVED') : ($name === 'identity_key' ? 'cdp_ik_…' : 'cdp_sk_…') ?>">
                     <?php } else { ?>
                         <input type="<?= $type ?>" id="<?= $siteId . '_' . $name ?>" name="site[<?= $siteId ?>][<?= $name ?>]" value="<?= htmlspecialcharsbx($value) ?>" size="60" autocomplete="off">
                     <?php } ?>

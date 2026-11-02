@@ -108,14 +108,14 @@ final class StoreMcp
     }
 
     /**
-     * The cookie of a signed-in customer (login, or a session restored from "remember me" on the next page);
-     * removed on logout.
+     * The cookie of a signed-in customer (login, or a session restored from "remember me" on the next page), also for
+     * the signed user id of the tracker (Visitor); removed on logout.
      */
     public static function rememberLogin(string $siteId): void
     {
         $request = Application::getInstance()->getContext()->getRequest();
 
-        if (!headers_sent() && self::enabled($siteId) && (string) $request->getCookieRaw(self::COOKIE) === '') {
+        if (!headers_sent() && (self::enabled($siteId) || Visitor::enabled($siteId)) && (string) $request->getCookieRaw(self::COOKIE) === '') {
             setcookie(self::COOKIE, bin2hex(random_bytes(8)), ['path' => '/', 'samesite' => 'Lax', 'secure' => $request->isHttps()]);
         }
     }

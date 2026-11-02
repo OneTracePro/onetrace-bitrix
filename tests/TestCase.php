@@ -30,7 +30,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
 
     protected function setUp(): void
     {
-        foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_test', 'secret_key' => 'cdp_sk_test', 'consent_property' => '', 'consent_topic' => '', 'push' => 'N', 'part_search_widget' => 'N'] as $name => $value) {
+        foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_test', 'secret_key' => 'cdp_sk_test', 'identity_key' => '', 'consent_property' => '', 'consent_topic' => '', 'push' => 'N', 'part_search_widget' => 'N'] as $name => $value) {
             Config::set($name, $value, self::SITE);
         }
 

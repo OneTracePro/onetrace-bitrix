@@ -67,9 +67,17 @@ final class Page
 
         Asset::getInstance()->addString($script, false, AssetLocation::AFTER_JS_KERNEL);
 
-        // The signed-in customer for the AI chat bot (store MCP): the token comes from a service, not with the page.
+        // The signed-in customer for the tracker (signed user id) and for the AI chat bot (store MCP): the id and the
+        // token come from services, not with the page.
+        if (\Onetrace\Connector\Visitor::enabled($siteId)) {
+            Asset::getInstance()->addString(\Onetrace\Connector\Visitor::trackerScript($siteId), false, AssetLocation::AFTER_JS_KERNEL);
+        }
+
         if (\Onetrace\Connector\StoreMcp::enabled($siteId)) {
             Asset::getInstance()->addString(\Onetrace\Connector\StoreMcp::trackerScript($siteId), false, AssetLocation::AFTER_JS_KERNEL);
+        }
+
+        if (\Onetrace\Connector\Visitor::enabled($siteId) || \Onetrace\Connector\StoreMcp::enabled($siteId)) {
             self::rememberLogin($siteId);
         }
 

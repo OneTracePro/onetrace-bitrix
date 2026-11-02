@@ -43,6 +43,12 @@ final class Config
         return self::get('secret_key', $siteId);
     }
 
+    /** The identity key of the project (cdp_ik_…): signs the user id of the signed-in customer for the tracker. */
+    public static function identityKey(?string $siteId = null): string
+    {
+        return self::get('identity_key', $siteId);
+    }
+
     public static function enabled(string $part, ?string $siteId = null): bool
     {
         return self::get('part_' . $part, $siteId, 'Y') === 'Y';

@@ -16,7 +16,7 @@ use OneTrace\Commerce\Messages;
  */
 final class Connection
 {
-    public const VERSION = '1.10.0';
+    public const VERSION = '1.11.0';
 
     /** @var array<string, Client> */
     private static array $clients = [];
@@ -37,6 +37,7 @@ final class Connection
         if (!isset(self::$clients[$cacheKey])) {
             self::$clients[$cacheKey] = new Client(Config::url($siteId), [
                 $write ? 'write_key' : 'secret_key' => ($write ? Config::writeKey($siteId) : Config::secretKey($siteId)) ?: null,
+                'identity_key' => Config::identityKey($siteId) ?: null,
                 'timeout' => $timeouts[0],
                 'connect_timeout' => $timeouts[1],
                 // The queue retries with long pauses; the client must not hold the agent.
@@ -46,6 +47,14 @@ final class Connection
         }
 
         return self::$clients[$cacheKey];
+    }
+
+    /**
+     * The signature of a user id for the tracker (the identity key of the site); null without the key.
+     */
+    public static function userHash(string $siteId, string $userId): ?string
+    {
+        return $userId !== '' && Config::identityKey($siteId) !== '' && Config::writeKey($siteId) !== '' ? self::client($siteId, 'write')->userHash($userId) : null;
     }
 
     public static function messages(string $siteId): Messages

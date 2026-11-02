@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.11.0 — 2026-11-02
+
+- Signed user ids (ADR-158 of the platform): the setting **Identity key** of the site (password field, an empty one keeps the stored key) — the tracker gets the id of the signed-in customer and `userHash` = HMAC-SHA256 of the id with the key (`Client::userHash()`, onetrace-php 1.17) and calls `cdp.identify(id, {}, { userHash })` when the browser does not know this id or signature yet (`cdp_uid` / `cdp_uhash` of the tracker 1.30.0). The page stays the same for every visitor (composite cache): the script asks the service `/bitrix/services/onetrace.connector/visitor.php?site=<site>` once per login in the tab (`sessionStorage`), only with the login cookie `onetrace_chat` of the module (now also set without the store MCP when the key is set); a guest or an administrator gets `{"userId": null, "userHash": null}` and the cookie is removed; without the cookie a customer the tracker still remembers is reset. A project with "Require signature" drops a user id from the browser without it. The key never goes into the page. After the update click **Save** in the settings once: it copies the new service.
+- Requires onetrace-php 1.17.
+
 ## 1.10.0 — 2026-10-24
 
 - Product descriptions in the catalog (onetrace-php 1.16): the detail text of the element, the preview text when it is empty — HTML as it is, a text of the type "text" escaped with its line breaks (so `<` and `&` of the text stay text); the platform keeps it as text up to 5000 characters, and OneTrace AI answers shoppers' questions about the product from it. Copies of the products on a site in another language of the project (the same `XML_ID`) add the translated description.

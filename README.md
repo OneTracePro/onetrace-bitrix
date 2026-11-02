@@ -38,6 +38,7 @@ Every Bitrix order has a user (the guest checkout registers one), so orders, the
 3. In your OneTrace project, open **API keys** and create a write key (for the storefront) and a secret key with the `products.write` permission (for the server); add "Send messages manually" (`messages.send`) for the store emails.
 4. **Settings → Product settings → Module settings → OneTrace**: on the tab of each site enter the platform address (the domain you open OneTrace at) and both keys, click **Test connection**.
 5. Run agents on cron (`agents_use_crontab`), otherwise the queue waits for visitors' hits.
+6. Optionally, the **Identity key** of the site — from **Site → Connection → Server** of the project. The tracker then gets the id of the signed-in customer signed with it (`cdp.identify(id, {}, { userHash })`, HMAC-SHA256 of the id): the page stays the same for everyone (composite cache), and a script asks `/bitrix/services/onetrace.connector/visitor.php` for the id and signature once per login, only in a browser with the login cookie of the module; after logout the tracker forgets the customer. Once the store and your apps sign user ids, turn on **Require signature** in the project: OneTrace stops trusting a user id from a browser without the signature. The key never goes to the browser.
 
 Updating: unpack the new version over the folder and click **Save** in the settings once — this installs the new components and event handlers of the version (`/bitrix/components/onetrace/`).
 

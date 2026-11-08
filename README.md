@@ -131,6 +131,19 @@ With **OneTrace search widget** on and the widget enabled in the project (Site �
 
 The module asks the platform whether the widget is enabled every 10 minutes and when the settings are saved; the widget off, the tracker off or an API error — the search above as before. Over the monthly search limit of the plan (402) the store search works too.
 
+## Cart links of AI assistants
+
+The shopping assistant of OneTrace (the MCP server for shoppers' AI assistants such as ChatGPT and Claude) gives the shopper a link that fills the cart of the store and opens it:
+
+```
+https://shop.example/?onetrace_cart=1414:2,1520:1&utm_source=chatgpt&utm_medium=ai_assistant&utm_campaign=shopper_mcp
+```
+
+- **Any public page** of a site connected to OneTrace takes the parameter `onetrace_cart` — pairs `id:quantity` separated by commas, at most 20, the quantity 1–99 (a larger one is cut to 99, a smaller one is 1); a pair that is not `id:quantity` is ignored. Only GET requests outside the admin, not ajax.
+- **Ids** are the ids of the OneTrace catalog of the module: the element of a product, or the element of an offer — that offer goes to the cart. A product with offers (no offer chosen), an unknown, inactive or sold out product, or one the cart refuses is skipped. On a site in another language of the project the id gives its copy of the product (the same `XML_ID`).
+- The products go to the cart of the visitor through the cart of the "Online store" (`\Bitrix\Catalog\Product\Basket::addProduct`, a guest too), then a 302 redirect to the cart page — the setting **Cart page** of the site, `/personal/cart/` of the site folder by default — with every other parameter of the link (`utm_*` …). Nothing added — the same page without `onetrace_cart`. The answer is not cached (`Cache-Control: no-store`); the composite cache is not affected.
+- Nothing else to set up: the tracker of the cart page records the visit with its utm tags, the cart events go as for any cart change.
+
 ## Languages of the catalog
 
 The catalog of a project comes from its first site. Other sites connected to the same project (the same address and secret key) with another language have their own copies of the catalog — as the exchange with 1C makes them — and the products and sections with the same `XML_ID` add translations: names, links on that site, descriptions and the values of the attributes. The platform shows recommendations, widgets, search results and emails in the visitor's language.

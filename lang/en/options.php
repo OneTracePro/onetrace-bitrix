@@ -20,6 +20,8 @@ $MESS['ONETRACE_OPTIONS_DELIVERED_STATUSES'] = 'Order statuses “Delivered”';
 $MESS['ONETRACE_OPTIONS_DELIVERED_STATUSES_HINT'] = 'An order that comes to one of these statuses is received by the customer (the order_delivered event). Hold Ctrl to choose several; none chosen — the event is not sent.';
 $MESS['ONETRACE_OPTIONS_PART_CART'] = 'Cart and product views';
 $MESS['ONETRACE_OPTIONS_PART_CART_HINT'] = 'Adding to and removing from the cart, opening the checkout, product views, deferred products (“Delayed”) as the wishlist — for abandoned cart, browse abandonment, price drop and back in stock journeys.';
+$MESS['ONETRACE_OPTIONS_CART_PAGE'] = 'Cart page';
+$MESS['ONETRACE_OPTIONS_CART_PAGE_HINT'] = 'Cart links of shoppers\' AI assistants (?onetrace_cart=) put their products into the visitor\'s cart and lead here. Empty — /personal/cart/ of the site folder.';
 $MESS['ONETRACE_OPTIONS_PART_CATALOG'] = 'Product catalog';
 $MESS['ONETRACE_OPTIONS_PART_CATALOG_HINT'] = 'Products and sections of the commercial catalog for recommendations and emails, with their descriptions (the detail text, otherwise the preview text) for the AI answers about the product: when products change and daily.';
 $MESS['ONETRACE_OPTIONS_PART_NOTIFY'] = 'Show the “Notify when available” form';

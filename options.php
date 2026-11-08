@@ -32,7 +32,7 @@ Loc::loadMessages(__FILE__);
 $sites = Config::sites();
 $fields = [
     'url' => 'text', 'write_key' => 'text', 'secret_key' => 'password', 'identity_key' => 'password',
-    'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'delivered_statuses' => 'multiselect', 'part_cart' => 'checkbox', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
+    'part_tracker' => 'checkbox', 'part_orders' => 'checkbox', 'delivered_statuses' => 'multiselect', 'part_cart' => 'checkbox', 'cart_page' => 'text', 'part_catalog' => 'checkbox', 'part_newsletter' => 'checkbox',
     'part_notify' => 'checkbox', 'part_ask' => 'checkbox', 'part_search' => 'checkbox', 'part_search_widget' => 'checkbox', 'consent_topic' => 'text', 'consent_property' => 'text', 'push' => 'checkbox',
     'loyalty' => 'select', 'promo_pools' => 'textarea',
 ];

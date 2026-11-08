@@ -8,6 +8,7 @@ use Bitrix\Main\Application;
 use Bitrix\Main\Page\Asset;
 use Bitrix\Main\Page\AssetLocation;
 use OneTrace\Commerce\LineItem;
+use Onetrace\Connector\CartLink;
 use Onetrace\Connector\Catalog;
 use Onetrace\Connector\Config;
 use Onetrace\Connector\Connection;
@@ -15,7 +16,8 @@ use Onetrace\Connector\Queue;
 
 /**
  * Storefront pages (OnProlog): the tracker in <head> — the same for every visitor, so it is cached with the page
- * (composite site); product views from the view counter of the standard catalog.element templates.
+ * (composite site); product views from the view counter of the standard catalog.element templates; cart links of
+ * shoppers' AI assistants (?onetrace_cart=) — before any output of the page.
  */
 final class Page
 {
@@ -36,6 +38,10 @@ final class Page
 
             if ($request->getRequestedPage() === self::VIEW_COUNTER) {
                 self::viewed();
+            } elseif (CartLink::requested($request)) {
+                // Ends the request with the redirect to the cart page; a site not connected to OneTrace goes on.
+                CartLink::redirect((string) SITE_ID, $request);
+                self::tracker((string) SITE_ID);
             } elseif (!$request->isAjaxRequest()) {
                 self::tracker((string) SITE_ID);
             }

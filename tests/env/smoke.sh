@@ -2,7 +2,7 @@
 # Storefront check over HTTP after tests/env/run.sh: the tracker in <head>, /cdp-sw.js from the site root, a product
 # view from the view counter of catalog.element, the recommendation widget component, the "Notify me when available" form,
 # the place of "Ask AI about this product", the store MCP server, the chat token and signed user id services, the search widget
-# and its cart service.
+# and its cart service, cart links of AI assistants.
 set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${BITRIX_PORT:-8895}"
@@ -25,6 +25,12 @@ MCP_DENIED=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: a
 MCP=$(curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $MCP_KEY" -d "$MCP_INIT" "$MCP_URL")
 CHAT_GUEST=$(curl -fsS "http://localhost:$PORT/bitrix/services/onetrace.connector/chat-customer.php?site=s1")
 VISITOR_GUEST=$(curl -fsS "http://localhost:$PORT/bitrix/services/onetrace.connector/visitor.php?site=s1")
+# A cart link of a guest: the product into the cart (the sold out one skipped), the cart page with the utm tags.
+LINK_JAR=$(mktemp)
+LINK=$(curl -sS -o /dev/null -D - -c "$LINK_JAR" -b "$LINK_JAR" "http://localhost:$PORT/?utm_source=chatgpt&onetrace_cart=$PRODUCT:2,$SOLD_OUT:1&utm_medium=ai_assistant" | tr -d '\r')
+LINK_CART=$(curl -fsS -c "$LINK_JAR" -b "$LINK_JAR" "http://localhost:$PORT/personal/cart/")
+rm -f "$LINK_JAR"
+LINK_NONE=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' "http://localhost:$PORT/catalog/?onetrace_cart=$SOLD_OUT:1&utm_source=chatgpt")
 
 # A fake platform inside the container answers the search with a redirect rule.
 docker compose exec -T web sh -c 'printf "%s" "<?php header(\"Content-Type: application/json\"); echo json_encode([\"enabled\" => true, \"total\" => 0, \"items\" => [], \"redirect\" => \"http://localhost/delivery/\"]);" > /tmp/platform.php; (php -S 127.0.0.1:9999 /tmp/platform.php >/dev/null 2>&1 &)'
@@ -76,3 +82,8 @@ check "search widget keeps the search fields" "$WIDGET_HOME" "data-cdp-search"
 check "cart refuses a request without X-Requested-With" "$CART_FOREIGN" "400"
 check "cart takes POST only" "$CART_GET" "405"
 check "cart adds the product" "$CART" '{"ok":true,"count":1}'
+check "cart link redirects to the cart with the utm tags" "$LINK" "Location: http://localhost:$PORT/personal/cart/?utm_source=chatgpt&utm_medium=ai_assistant"
+check "cart link answer is not cached" "$LINK" "Cache-Control: no-store"
+check "cart link fills the cart of the guest" "$LINK_CART" "'PRODUCT_ID':'$PRODUCT','~PRODUCT_ID':'$PRODUCT','QUANTITY':2"
+check "cart link skips the sold out product" "$(grep -c "'PRODUCT_ID':'$SOLD_OUT'" <<<"$LINK_CART" || true)" "0"
+check "cart link with nothing added keeps the page" "$LINK_NONE" "302 http://localhost:$PORT/catalog/?utm_source=chatgpt"

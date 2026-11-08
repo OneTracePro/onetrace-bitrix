@@ -20,6 +20,7 @@ use Onetrace\Connector\Connection;
 use Onetrace\Connector\Mapper;
 use Onetrace\Connector\Queue;
 use Onetrace\Connector\StoreEmails;
+use Onetrace\Connector\StoreMcp\Orders;
 
 /**
  * Orders and the cart from the server (module "sale"): placed, paid, shipped, delivered, cancelled and refunded orders
@@ -36,9 +37,10 @@ final class Sale
     public const TRACKING_WAIT = 12 * 3600;
 
     /**
-     * OnSaleOrderSaved: a new order — identify with the order data and order_completed; a paid order that stopped
-     * being paid with a returned payment — order_refunded (Bitrix fires no payment event for a return); the order
-     * came to a status of the setting "Order statuses “Delivered”" ("Выполнен" by default) — order_delivered.
+     * OnSaleOrderSaved: a new order — identify with the order data and order_completed (an order of an AI assistant
+     * with properties.ai_assistant, as its order_paid); a paid order that stopped being paid with a returned payment —
+     * order_refunded (Bitrix fires no payment event for a return); the order came to a status of the setting "Order
+     * statuses “Delivered”" ("Выполнен" by default) — order_delivered.
      */
     public static function onOrderSaved(Event $event): void
     {
@@ -78,7 +80,8 @@ final class Sale
 
             $messages = Connection::messages($siteId);
             Queue::event($siteId, $messages->identify($model->customer, self::consents($order), $model->placedAt));
-            Queue::event($siteId, $messages->orderCompleted($model));
+            // An order of an AI shopping assistant (the store MCP) carries the assistant: properties.ai_assistant.
+            Queue::event($siteId, Orders::tag($messages->orderCompleted($model), $order));
         });
 
         // An order placed already completed (the admin, an exchange).
@@ -126,7 +129,7 @@ final class Sale
                 $model = Mapper::order($order);
 
                 if ($model->customer->ids() !== []) {
-                    Queue::event((string) $order->getSiteId(), Connection::messages((string) $order->getSiteId())->orderPaid($model, self::now()));
+                    Queue::event((string) $order->getSiteId(), Orders::tag(Connection::messages((string) $order->getSiteId())->orderPaid($model, self::now()), $order));
                 }
             });
         }

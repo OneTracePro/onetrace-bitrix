@@ -11,6 +11,7 @@ use Bitrix\Main\Mail\Internal\EventMessageTable;
 use Bitrix\Main\Mail\Internal\EventTypeTable;
 use Onetrace\Connector\StoreMcp\CacheCodeStore;
 use Onetrace\Connector\StoreMcp\Customers;
+use Onetrace\Connector\StoreMcp\Orders;
 use Onetrace\Connector\StoreMcp\Tools;
 use OneTrace\StoreMcp\CustomerTokens;
 use OneTrace\StoreMcp\Server;
@@ -19,10 +20,11 @@ use OneTrace\StoreMcp\Verification;
 Loc::loadMessages(__FILE__);
 
 /**
- * MCP server of the store for the OneTrace AI chat bot (store MCP contract v1):
+ * MCP server of the store for the OneTrace AI chat bot and AI shopping assistants (store MCP contract v2):
  * /bitrix/services/onetrace.connector/mcp.php?site=<site>. The bot reads orders, tracking, stock, delivery and the
  * return policy, and — when the owner allows it in the settings — cancels orders with nothing paid and passes return
- * and delivery change requests to the shop. Customers are confirmed by the login on the site or by a code by email.
+ * and delivery change requests to the shop; AI shopping assistants price and place orders (StoreMcp\Orders, also for
+ * guests confirmed by a code). Customers are confirmed by the login on the site or by a code by email.
  *
  * The token of a signed-in customer does not go into the page (the composite cache keeps pages): the login sets the
  * onetrace_chat cookie, and the tracker script asks chat-customer.php for the token when it sees the cookie.
@@ -36,6 +38,9 @@ final class StoreMcp
 
     public const ACTIONS = ['store_cancel_order', 'store_create_return', 'store_change_delivery'];
 
+    /** Orders from AI shopping assistants (contract v2): off until the owner allows both. */
+    public const ORDER_TOOLS = ['store_quote_order', 'store_create_order'];
+
     /** Cookie of a signed-in customer for the tracker script: a random value per login, not the token itself. */
     public const COOKIE = 'onetrace_chat';
 
@@ -47,13 +52,23 @@ final class StoreMcp
     }
 
     /**
-     * Tools the owner allows the bot to use on the site.
+     * Tools of the settings: reading, actions of the bot, orders of AI assistants.
+     *
+     * @return list<string>
+     */
+    public static function tools(): array
+    {
+        return array_merge(self::READ_TOOLS, self::ACTIONS, self::ORDER_TOOLS);
+    }
+
+    /**
+     * Tools the owner allows the bot and the assistants to use on the site.
      *
      * @return list<string>
      */
     public static function allowedTools(string $siteId): array
     {
-        return array_values(array_intersect(array_merge(self::READ_TOOLS, self::ACTIONS), explode(',', Config::get('store_mcp_tools', $siteId, implode(',', self::READ_TOOLS)))));
+        return array_values(array_intersect(self::tools(), explode(',', Config::get('store_mcp_tools', $siteId, implode(',', self::READ_TOOLS)))));
     }
 
     public static function server(string $siteId): Server
@@ -69,11 +84,16 @@ final class StoreMcp
             'store_cancel_order' => [Tools::class, 'cancel'],
             'store_create_return' => [Tools::class, 'createReturn'],
             'store_change_delivery' => [Tools::class, 'changeDelivery'],
+            'store_quote_order' => [Orders::class, 'quote'],
+            'store_create_order' => [Orders::class, 'create'],
         ], [
             'name' => 'bitrix:' . (string) parse_url(Connection::siteUrl($siteId), PHP_URL_HOST),
             'version' => Connection::VERSION,
             'enabled' => self::allowedTools($siteId),
             'verification' => new Verification(new CacheCodeStore(), [Customers::class, 'find'], [Customers::class, 'sendCode']),
+            // Repeated actions with the same idempotency key get the kept answer; orders are kept by the key in the
+            // database as well (Orders).
+            'idempotency' => new CacheCodeStore(),
         ]);
     }
 

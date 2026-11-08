@@ -1,8 +1,9 @@
 <?php
 
 /**
- * MCP server of the store for the OneTrace AI chat bot (store MCP contract v1): POST with the platform key
- * (Authorization: Bearer). The site comes in ?site=, as the server address of each site is registered with it.
+ * MCP server of the store for the OneTrace AI chat bot and AI shopping assistants (store MCP contract v2): POST with
+ * the platform key (Authorization: Bearer). The site comes in ?site=, as the server address of each site is registered
+ * with it.
  * Copied to /bitrix/services/onetrace.connector/ on install.
  */
 

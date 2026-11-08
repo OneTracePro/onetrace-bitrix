@@ -64,7 +64,7 @@ final class StoreMcpTest extends TestCase
         $init = $this->rpc('initialize')['data']['result'];
         $tools = array_column($this->rpc('tools/list')['data']['result']['tools'], 'name');
 
-        self::assertSame(['version' => 1], $init['capabilities']['experimental']['onetrace/store']);
+        self::assertSame(['version' => 2], $init['capabilities']['experimental']['onetrace/store'], 'With the order tools of AI assistants.');
         self::assertContains('store_cancel_order', $tools);
         self::assertNotContains('store_create_return', $tools);
         self::assertSame(401, $this->rpc('tools/list', [], 'wrong-key')['status']);

@@ -42,7 +42,8 @@ if (($argv[1] ?? '') === 'queue') {
     return;
 }
 
-foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y', 'part_search_widget' => 'N', 'store_mcp' => 'Y', 'identity_key' => 'cdp_ik_smoke'] as $name => $value) {
+foreach (['url' => 'https://cdp.example.com', 'write_key' => 'cdp_wk_smoke', 'secret_key' => 'cdp_sk_smoke', 'push' => 'Y', 'part_search' => 'Y', 'part_search_widget' => 'N', 'store_mcp' => 'Y', 'identity_key' => 'cdp_ik_smoke',
+    'store_mcp_tools' => implode(',', \Onetrace\Connector\StoreMcp::tools())] as $name => $value) {
     Config::set($name, $value, 's1');
 }
 

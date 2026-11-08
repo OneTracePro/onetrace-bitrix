@@ -66,17 +66,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
             }
         }
 
-        // Store MCP for the AI chat bot: the switch, the tools the bot may use and the return policy of each site.
+        // Store MCP for the AI chat bot and AI shopping assistants: the switch, the tools they may use, the return
+        // policy and the payment page of each site.
         foreach (array_keys($sites) as $siteId) {
             $mcp = (array) ($_POST['site'][$siteId] ?? []);
             Config::set('store_mcp', ($mcp['store_mcp'] ?? '') === 'Y' ? 'Y' : 'N', $siteId);
-            Config::set('store_mcp_tools', implode(',', array_intersect(array_merge(StoreMcp::READ_TOOLS, StoreMcp::ACTIONS), array_map('strval', (array) ($mcp['store_mcp_tools'] ?? [])))), $siteId);
+            Config::set('store_mcp_tools', implode(',', array_intersect(StoreMcp::tools(), array_map('strval', (array) ($mcp['store_mcp_tools'] ?? [])))), $siteId);
             Config::set('store_mcp_return_text', trim((string) ($mcp['store_mcp_return_text'] ?? '')), $siteId);
             Config::set('store_mcp_return_url', trim((string) ($mcp['store_mcp_return_url'] ?? '')), $siteId);
+            Config::set('payment_page', trim((string) ($mcp['payment_page'] ?? '')), $siteId);
         }
 
         // Event handlers of this version (an upgrade from an older module): registering is idempotent.
         Events::register();
+
+        // Orders from AI assistants: the table of this version (an upgrade from an older module).
+        try {
+            \Onetrace\Connector\StoreMcp\Orders::install();
+        } catch (\Throwable $error) {
+            $notes[] = ['ok' => false, 'text' => $error->getMessage()];
+        }
 
         // Bonus points: the table and the agent of this version (an upgrade from an older module), and the pay
         // system of the payment mode.
@@ -221,10 +230,11 @@ $stats = Queue::stats();
         <tr>
             <td class="adm-detail-valign-top"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_TOOLS') ?></td>
             <td>
-                <?php foreach (array_merge(StoreMcp::READ_TOOLS, StoreMcp::ACTIONS) as $tool) { ?>
+                <?php foreach (StoreMcp::tools() as $tool) { ?>
                     <label><input type="checkbox" name="site[<?= $siteId ?>][store_mcp_tools][]" value="<?= $tool ?>"<?= in_array($tool, explode(',', $mcpTools), true) ? ' checked' : '' ?>> <?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_TOOL_' . strtoupper($tool)) ?></label><br>
                 <?php } ?>
                 <small><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_TOOLS_HINT') ?></small>
+                <br><small><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_ORDERS_HINT') ?></small>
             </td>
         </tr>
         <tr>
@@ -234,6 +244,13 @@ $stats = Queue::stats();
         <tr>
             <td><label for="<?= $siteId ?>_store_mcp_return_url"><?= Loc::getMessage('ONETRACE_OPTIONS_STORE_MCP_RETURN_URL') ?></label></td>
             <td><input type="text" id="<?= $siteId ?>_store_mcp_return_url" name="site[<?= $siteId ?>][store_mcp_return_url]" value="<?= htmlspecialcharsbx(Config::get('store_mcp_return_url', $siteId)) ?>" size="60" placeholder="/about/returns/"></td>
+        </tr>
+        <tr>
+            <td class="adm-detail-valign-top"><label for="<?= $siteId ?>_payment_page"><?= Loc::getMessage('ONETRACE_OPTIONS_PAYMENT_PAGE') ?></label></td>
+            <td>
+                <input type="text" id="<?= $siteId ?>_payment_page" name="site[<?= $siteId ?>][payment_page]" value="<?= htmlspecialcharsbx(Config::get('payment_page', $siteId)) ?>" size="60" placeholder="/personal/order/payment/">
+                <br><small><?= Loc::getMessage('ONETRACE_OPTIONS_PAYMENT_PAGE_HINT') ?></small>
+            </td>
         </tr>
         <?php $mcpStatus = StoreMcp::status($siteId); ?>
         <tr>

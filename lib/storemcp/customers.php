@@ -104,6 +104,59 @@ final class Customers
     }
 
     /**
+     * An account for the guest of an order from an AI assistant (contract v2), as the standard checkout makes one
+     * (sale.order.ajax): the login from the email or the phone, the groups of new users, a random password by the
+     * policy, the name and the address of the order; the confirmed phone becomes the login phone when the site signs
+     * in by phone. The customer is not signed in and gets no email about the account.
+     *
+     * @param array<string, string> $shipping
+     */
+    public static function register(string $siteId, ?string $email, ?string $phone, array $shipping): int
+    {
+        $login = $email !== null ? (string) strstr($email, '@', true) : (string) preg_replace('/\D/', '', (string) $phone);
+        $login = str_pad(mb_substr($login !== '' ? $login : randString(5) . mt_rand(0, 99999), 0, 47), 3, '_');
+        $candidate = $login;
+
+        while (\CUser::GetByLogin($candidate)->Fetch()) {
+            $candidate = $login . mt_rand(0, 99999);
+        }
+
+        $groups = array_values(array_filter(array_map('intval', explode(',', (string) \Bitrix\Main\Config\Option::get('main', 'new_user_registration_def_group', '')))));
+        $password = \CUser::GeneratePasswordByPolicy($groups);
+        $fields = [
+            'LOGIN' => $candidate,
+            'NAME' => $shipping['first_name'] ?? '',
+            'LAST_NAME' => $shipping['last_name'] ?? '',
+            'EMAIL' => $email ?? '',
+            'PASSWORD' => $password,
+            'CONFIRM_PASSWORD' => $password,
+            'GROUP_ID' => $groups,
+            'ACTIVE' => 'Y',
+            'LID' => $siteId,
+            'PERSONAL_PHONE' => $phone ?? ($shipping['phone'] ?? ''),
+            'PERSONAL_ZIP' => $shipping['postcode'] ?? '',
+            'PERSONAL_CITY' => $shipping['city'] ?? '',
+            'PERSONAL_STREET' => $shipping['address'] ?? '',
+            'PERSONAL_COUNTRY' => isset($shipping['country']) ? (string) (\GetCountryIdByCode($shipping['country']) ?: '') : '',
+        ];
+
+        if ($phone !== null && \Bitrix\Main\Config\Option::get('main', 'new_user_phone_auth', 'N') === 'Y') {
+            $fields['PHONE_NUMBER'] = $phone;
+        }
+
+        $user = new \CUser();
+        $id = (int) $user->Add($fields);
+
+        if ($id <= 0) {
+            Queue::log('store MCP guest account: ' . strip_tags((string) $user->LAST_ERROR));
+
+            throw new ToolError(ToolError::NOT_ALLOWED, (string) Loc::getMessage('ONETRACE_STORE_MCP_NO_ACCOUNT'));
+        }
+
+        return $id;
+    }
+
+    /**
      * Orders of the customer, newest first.
      *
      * @return list<Order>

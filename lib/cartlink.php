@@ -162,10 +162,11 @@ final class CartLink
     }
 
     /**
-     * The active element of a product or an offer of the site: the id itself in a catalog infoblock of the site (or
-     * its offers), or the copy of a catalog element in another language (the same XML_ID).
+     * The active element of a product or an offer of the site for an id of the platform catalog: the id itself in a
+     * catalog infoblock of the site (or its offers), or the copy of a catalog element in another language (the same
+     * XML_ID). Also the products of orders from AI assistants (StoreMcp\Orders).
      */
-    private static function element(string $siteId, int $id): ?int
+    public static function element(string $siteId, int $id): ?int
     {
         $products = Catalog::iblocks($siteId);
 

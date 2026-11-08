@@ -393,7 +393,7 @@ final class Tools
      * Contract status: cancelled, the "Delivered" statuses of the settings, "F" (completed), shipped, paid
      * (processing) or waiting (pending).
      */
-    private static function status(Order $order): string
+    public static function status(Order $order): string
     {
         $statusId = (string) $order->getField('STATUS_ID');
 
@@ -504,7 +504,7 @@ final class Tools
      *
      * @return array<string, mixed>
      */
-    private static function filled(array $data): array
+    public static function filled(array $data): array
     {
         return array_filter($data, static fn ($value): bool => $value !== null && $value !== '' && $value !== []);
     }
@@ -512,7 +512,7 @@ final class Tools
     /**
      * @return array{amount: float, currency: string}
      */
-    private static function money(float $amount, string $currency): array
+    public static function money(float $amount, string $currency): array
     {
         return ['amount' => round($amount, 2), 'currency' => $currency];
     }

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Storefront check over HTTP after tests/env/run.sh: the tracker in <head>, /cdp-sw.js from the site root, a product
 # view from the view counter of catalog.element, the recommendation widget component, the "Notify me when available" form,
-# the place of "Ask AI about this product", the store MCP server, the chat token and signed user id services, the search widget
-# and its cart service, cart links of AI assistants.
+# the place of "Ask AI about this product", the store MCP server with the order quote of AI assistants, the chat token and signed
+# user id services, the search widget and its cart service, cart links of AI assistants.
 set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${BITRIX_PORT:-8895}"
@@ -23,6 +23,8 @@ MCP_INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 MCP_URL="http://localhost:$PORT/bitrix/services/onetrace.connector/mcp.php?site=s1"
 MCP_DENIED=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer wrong' -d "$MCP_INIT" "$MCP_URL")
 MCP=$(curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $MCP_KEY" -d "$MCP_INIT" "$MCP_URL")
+MCP_QUOTE=$(curl -fsS -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $MCP_KEY" \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"store_quote_order\",\"arguments\":{\"items\":[{\"product_id\":\"$PRODUCT\",\"quantity\":2}]},\"_meta\":{\"onetrace/source\":\"assistant\",\"onetrace/assistant\":\"chatgpt\"}}}" "$MCP_URL")
 CHAT_GUEST=$(curl -fsS "http://localhost:$PORT/bitrix/services/onetrace.connector/chat-customer.php?site=s1")
 VISITOR_GUEST=$(curl -fsS "http://localhost:$PORT/bitrix/services/onetrace.connector/visitor.php?site=s1")
 # A cart link of a guest: the product into the cart (the sold out one skipped), the cart page with the utm tags.
@@ -69,7 +71,8 @@ check "search page falls back on platform errors" "$SEARCH_STATUS" "200"
 check "category of a suggestion" "$CATEGORY" "/catalog/smoke-section-"
 check "search redirect rule" "$REDIRECT" "302 http://localhost/delivery/"
 check "store MCP refuses another key" "$MCP_DENIED" "401"
-check "store MCP contract" "$MCP" '"onetrace/store":{"version":1}'
+check "store MCP contract" "$MCP" '"onetrace/store":{"version":2}'
+check "store MCP quote of an AI assistant" "$MCP_QUOTE" "\"structuredContent\":{\"items\":[{\"product_id\":\"$PRODUCT\",\"name\":\"Smoke\",\"quantity\":2,"
 check "chat token script" "$HOME_PAGE" "onetrace_chat"
 check "place of “Ask AI about this product”" "$HOME_PAGE" "d.setAttribute('data-cdp-ask','')"
 check "no chat token for a guest" "$CHAT_GUEST" '{"token":null}'

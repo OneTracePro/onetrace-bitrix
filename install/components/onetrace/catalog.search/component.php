@@ -6,7 +6,8 @@
  * layout, the visitor's interests) and are shown by bitrix:catalog.section of the store; a query with a redirect rule
  * opens its page. The setting "Product search" off, an empty query or any API error — bitrix:catalog.search as usual.
  * With the search widget of OneTrace (Search\Widget) the tracker draws the results in the container of the component:
- * the module does not search itself then.
+ * the module does not search itself then. With AI search of the project the query goes to AI first (Search::ai()),
+ * and the AI block goes above the products.
  *
  * @var array $arParams
  * @var array $arResult
@@ -46,7 +47,10 @@ if (Loader::includeModule('onetrace.connector') && Widget::active(SITE_ID)) {
 if ($query !== '' && Loader::includeModule('onetrace.connector') && Search::enabled(SITE_ID)) {
     $navigation = new PageNavigation('search');
     $navigation->setPageSize(max(1, min(Search::MAX_PER_PAGE, (int) ($params['PAGE_ELEMENT_COUNT'] ?? 30) ?: 30)))->initFromUri();
-    $result = Search::products(SITE_ID, $query, $navigation->getCurrentPage(), $navigation->getPageSize(), Search::sort((string) ($params['ELEMENT_SORT_FIELD'] ?? ''), (string) ($params['ELEMENT_SORT_ORDER'] ?? '')));
+    $sort = Search::sort((string) ($params['ELEMENT_SORT_FIELD'] ?? ''), (string) ($params['ELEMENT_SORT_ORDER'] ?? ''));
+    // AI search first (the mode of the project), then the usual one.
+    $result = Search::ai(SITE_ID, $query, $navigation->getCurrentPage(), $navigation->getPageSize(), $sort, $APPLICATION->GetCurPage(false) . '?q=' . rawurlencode($query), array_intersect_key($_REQUEST, array_flip(Search::AI_PARAMS)))
+        ?? Search::products(SITE_ID, $query, $navigation->getCurrentPage(), $navigation->getPageSize(), $sort);
 }
 
 if ($result === null) {
@@ -63,6 +67,8 @@ if ($navigation->getCurrentPage() === 1) {
     }
 }
 
+// The AI block above the products: the tracker draws the answer, chips and refinements.
+echo $result['block'] ?? '';
 $navigation->setRecordCount($result['total']);
 $arResult = ['IDS' => $result['ids'], 'TOTAL' => $result['total'], 'NAVIGATION' => $navigation, 'PARAMS' => $params];
 

@@ -120,6 +120,7 @@ $APPLICATION->IncludeComponent('onetrace:catalog.search', '', $params…); // in
 - A query with a redirect rule (Site → Search of the platform, e.g. "delivery" → the delivery page) opens the rule's page.
 - The search fields of the store (`search.title` and forms with `q`) show suggestions of the tracker while typing instead of the title search popup.
 - Any error of the platform keeps `bitrix:catalog.search`.
+- AI search: with AI search on in **Site → Search** of the platform, the query goes to AI first — it reads it as catalog filters, and the page shows the products it found (the parse is waited for up to 2.5 seconds, otherwise the usual results). Above the products the tracker draws the short AI answer, the chips of what AI understood, refinements and "Regular search" (`<div data-cdp-search-ai>`, links with `ai_state`, `ai_refine`, `ai=0`). With the OneTrace search widget AI works in the widget itself.
 
 ### OneTrace search widget
 

@@ -29,7 +29,23 @@ final class Widget
     public static function active(string $siteId): bool
     {
         return Config::storefront($siteId) && Config::enabled('tracker', $siteId) && Config::get('part_search_widget', $siteId, 'N') === 'Y'
-            && self::enabled($siteId);
+            && self::platform($siteId)['enabled'];
+    }
+
+    /**
+     * The AI search mode of the project ({mode, answer}) for the AI results of the module's own search; null — off.
+     *
+     * @return array{mode: string, answer: bool}|null
+     */
+    public static function aiMode(string $siteId): ?array
+    {
+        if (!Config::storefront($siteId)) {
+            return null;
+        }
+
+        $ai = self::platform($siteId)['ai'];
+
+        return in_array($ai['mode'] ?? null, ['auto', 'toggle', 'always'], true) ? ['mode' => (string) $ai['mode'], 'answer' => (bool) ($ai['answer'] ?? true)] : null;
     }
 
     /**
@@ -62,33 +78,39 @@ final class Widget
     }
 
     /**
-     * enabled of GET /api/v1/search/widget for the write key and the language of the site, cached.
+     * enabled and ai of GET /api/v1/search/widget for the write key and the language of the site, cached.
+     *
+     * @return array{enabled: bool, ai: array<string, mixed>|null}
      */
-    private static function enabled(string $siteId): bool
+    private static function platform(string $siteId): array
     {
         $cache = Application::getInstance()->getManagedCache();
         $language = Config::language($siteId);
         $id = 'onetrace_search_widget_' . md5(Config::url($siteId) . '|' . Config::writeKey($siteId) . '|' . $language);
         $value = $cache->read(self::TTL, $id, self::CACHE_DIR) ? $cache->get($id) : false;
 
-        // Long agents and cron keep the cache of their first read: the time of the value decides.
-        if (is_array($value) && ($value['at'] ?? 0) >= time() - (($value['ok'] ?? false) ? self::TTL : self::FAILURE_TTL)) {
-            return (bool) ($value['enabled'] ?? false);
+        // Long agents and cron keep the cache of their first read: the time of the value decides. A value without "ai"
+        // was written by an older version of the module: asked again.
+        if (is_array($value) && array_key_exists('ai', $value) && ($value['at'] ?? 0) >= time() - (($value['ok'] ?? false) ? self::TTL : self::FAILURE_TTL)) {
+            return ['enabled' => (bool) ($value['enabled'] ?? false), 'ai' => is_array($value['ai']) ? $value['ai'] : null];
         }
 
         try {
-            $enabled = (Connection::client($siteId, 'search')->search()->widget($language)['enabled'] ?? false) === true;
+            $widget = Connection::client($siteId, 'search')->search()->widget($language);
+            $enabled = $widget['enabled'] === true;
+            $ai = is_array($widget['ai'] ?? null) ? $widget['ai'] : null;
             $ok = true;
         } catch (\Throwable $error) {
             $enabled = false;
+            $ai = null;
             $ok = false;
             Queue::log('search widget settings of site ' . $siteId . ': ' . $error->getMessage());
         }
 
         $cache->clean($id, self::CACHE_DIR);
         $cache->read(self::TTL, $id, self::CACHE_DIR);
-        $cache->setImmediate($id, ['at' => time(), 'enabled' => $enabled, 'ok' => $ok]);
+        $cache->setImmediate($id, ['at' => time(), 'enabled' => $enabled, 'ai' => $ai, 'ok' => $ok]);
 
-        return $enabled;
+        return ['enabled' => $enabled, 'ai' => $ai];
     }
 }

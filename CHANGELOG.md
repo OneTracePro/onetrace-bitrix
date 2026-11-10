@@ -2,6 +2,13 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## 1.14.0 — 2026-11-11
+
+- AI search (stage 95 of the platform, onetrace-php 1.19): with AI search on in **Site → Search** of OneTrace, `onetrace:catalog.search` asks AI first (`Search\Search::ai()`, `search()->ai()`): AI reads the query as catalog filters — category, brands, characteristics, price, words to exclude — and `bitrix:catalog.section` shows the products it found in its order. The parse is waited for up to 2.5 seconds (`Search::AI_WAIT`); a query the mode does not want, an AI error or no answer in time — the usual results of the module.
+- Above the products of the first page — `<div data-cdp-search-ai>`: the tracker writes the short AI answer there and draws the chips of what AI understood, the refinements and "Regular search". They open the search page again with `ai_state` (the parse without a removed chip), `ai_refine` + `ai_previous` (a refinement) or `ai=0`.
+- The AI search mode comes with the search widget settings (`GET /search/widget`, cached for 10 minutes, now also with the widget setting off): a project without AI search makes no extra request per search.
+- With the OneTrace search widget, AI search works in the widget of the tracker.
+
 ## 1.13.0 — 2026-11-08
 
 - Orders from AI shopping assistants — store MCP contract v2 (onetrace-php 1.18): the server announces version 2 and offers `store_quote_order` and `store_create_order` when the owner allows them (new tools of "What the bot and the assistants may do", off by default; the block is now "AI chat bot and AI assistants: store MCP").
